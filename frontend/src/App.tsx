@@ -534,16 +534,44 @@ function App() {
                             type="file" 
                             id="file-input" 
                             accept=".pdf" 
-                            onChange={(e) => {
+                            onChange={async (e) => {
                               if (e.target.files && e.target.files[0]) {
-                                setAttachedDocument(e.target.files[0].name);
-                                setSystemMessage({ text: `Attached ${e.target.files[0].name} successfully.`, type: 'success'});
+                                const file = e.target.files[0];
+                                if (isBackendOnline) {
+                                  try {
+                                    setLoading(true);
+                                    const formData = new FormData();
+                                    formData.append("file", file);
+                                    formData.append("uploadedBy", currentUserId);
+                                    const uploadRes = await fetch(`${API_BASE}/document/upload`, {
+                                      method: "POST",
+                                      body: formData
+                                    });
+                                    if (!uploadRes.ok) throw new Error("File upload failed");
+                                    const docInfo = await uploadRes.json();
+                                    setAttachedDocument(docInfo.fileUrl);
+                                    setSystemMessage({ text: `Uploaded and encrypted ${file.name} successfully.`, type: "success" });
+                                  } catch (err) {
+                                    setSystemMessage({ text: "Failed to upload document to DocumentService.", type: "error" });
+                                  } finally {
+                                    setLoading(false);
+                                  }
+                                } else {
+                                  setAttachedDocument(file.name);
+                                  setSystemMessage({ text: `Attached ${file.name} successfully (Simulation).`, type: "success" });
+                                }
                               }
                             }}
                           />
                           <label htmlFor="file-input" className="file-label">
                             <span className="icon">📎</span>
-                            <span className="text">{attachedDocument || 'Choose PDF File'}</span>
+                            <span className="text">
+                              {attachedDocument 
+                                ? attachedDocument.startsWith("http") || attachedDocument.startsWith("/") 
+                                  ? `Uploaded: ${attachedDocument.substring(attachedDocument.lastIndexOf("/") + 1)}`
+                                  : attachedDocument
+                                : "Choose PDF File"}
+                            </span>
                           </label>
                         </div>
                       </div>
