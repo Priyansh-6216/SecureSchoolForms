@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Yarp.ReverseProxy" Version="2.1.0" />
     <ProjectReference Include="..\SecureSchoolForms.Core\SecureSchoolForms.Core.csproj" />
   </ItemGroup>
 
