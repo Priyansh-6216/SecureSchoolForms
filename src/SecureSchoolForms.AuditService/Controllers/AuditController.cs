@@ -1,9 +1,8 @@
 using System.Collections.Generic;
-using System.IO;
-using System.Text.Json;
+using System.Linq;
 using Microsoft.AspNetCore.Mvc;
-using SecureSchoolForms.Core;
 using SecureSchoolForms.Core.Entities;
+using SecureSchoolForms.Core.Infrastructure;
 
 namespace SecureSchoolForms.AuditService.Controllers;
 
@@ -11,22 +10,21 @@ namespace SecureSchoolForms.AuditService.Controllers;
 [Route("api/[controller]")]
 public class AuditController : ControllerBase
 {
-    private static readonly string AuditFile = Path.Combine(SolutionDirectory.Path, ".data", "audit_logs.json");
+    private readonly SchoolFormsDbContext _dbContext;
+
+    public AuditController(SchoolFormsDbContext dbContext)
+    {
+        _dbContext = dbContext;
+    }
 
     [HttpGet]
     public IActionResult GetAuditLogs()
     {
-        if (!File.Exists(AuditFile))
-        {
-            return Ok(new List<AuditLog>());
-        }
-
         try
         {
-            var json = File.ReadAllText(AuditFile);
-            var logs = JsonSerializer.Deserialize<List<AuditLog>>(json) ?? new List<AuditLog>();
-            // Return newest first
-            logs.Reverse();
+            var logs = _dbContext.AuditLogs
+                .OrderByDescending(log => log.Timestamp)
+                .ToList();
             return Ok(logs);
         }
         catch

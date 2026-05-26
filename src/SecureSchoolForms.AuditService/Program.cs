@@ -9,7 +9,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllers();
 
-// Register concrete implementations
+// Register concrete database and message bus implementations
+builder.Services.AddDbContext<SchoolFormsDbContext>();
 builder.Services.AddSingleton<IMessageBus, JsonFileMessageBus>();
 
 // Register background audit processor worker
@@ -28,6 +29,13 @@ builder.Services.AddCors(options =>
 builder.WebHost.UseUrls("http://localhost:5003");
 
 var app = builder.Build();
+
+// Ensure SQLite database is created on startup
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<SchoolFormsDbContext>();
+    db.Database.EnsureCreated();
+}
 
 app.UseCors("AllowAll");
 app.UseAuthorization();

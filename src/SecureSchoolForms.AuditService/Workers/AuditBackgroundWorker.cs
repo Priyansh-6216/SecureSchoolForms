@@ -1,11 +1,9 @@
 using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using SecureSchoolForms.Core;
 using SecureSchoolForms.Core.Entities;
 using SecureSchoolForms.Core.Events;
 using SecureSchoolForms.Core.Infrastructure;
@@ -14,9 +12,12 @@ namespace SecureSchoolForms.AuditService.Workers;
 
 public class AuditBackgroundWorker : BackgroundService
 {
-    private static readonly string DataDir = Path.Combine(SolutionDirectory.Path, ".data");
-    private static readonly string AuditFile = Path.Combine(DataDir, "audit_logs.json");
-    private static readonly object FileLock = new();
+    private readonly IServiceProvider _serviceProvider;
+
+    public AuditBackgroundWorker(IServiceProvider serviceProvider)
+    {
+        _serviceProvider = serviceProvider;
+    }
 
     protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -69,40 +70,19 @@ public class AuditBackgroundWorker : BackgroundService
         return Task.CompletedTask;
     }
 
-    private Task AppendAuditLogAsync(AuditLog log)
+    private async Task AppendAuditLogAsync(AuditLog log)
     {
-        lock (FileLock)
-        {
-            if (!Directory.Exists(DataDir))
-            {
-                Directory.CreateDirectory(DataDir);
-            }
-
-            var logs = LoadAuditLogs();
-            logs.Add(log);
-            SaveAuditLogs(logs);
-            Console.WriteLine($"[AuditService] Logged action: {log.ActionType} by user {log.UserId}");
-        }
-        return Task.CompletedTask;
-    }
-
-    private List<AuditLog> LoadAuditLogs()
-    {
-        if (!File.Exists(AuditFile)) return new List<AuditLog>();
         try
         {
-            var json = File.ReadAllText(AuditFile);
-            return JsonSerializer.Deserialize<List<AuditLog>>(json) ?? new List<AuditLog>();
+            using var scope = _serviceProvider.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<SchoolFormsDbContext>();
+            await db.AuditLogs.AddAsync(log);
+            await db.SaveChangesAsync();
+            Console.WriteLine($"[AuditService] Logged action: {log.ActionType} by user {log.UserId}");
         }
-        catch
+        catch (Exception ex)
         {
-            return new List<AuditLog>();
+            Console.WriteLine($"[AuditService] Error saving audit log: {ex.Message}");
         }
-    }
-
-    private void SaveAuditLogs(List<AuditLog> logs)
-    {
-        var json = JsonSerializer.Serialize(logs, new JsonSerializerOptions { WriteIndented = true });
-        File.WriteAllText(AuditFile, json);
     }
 }

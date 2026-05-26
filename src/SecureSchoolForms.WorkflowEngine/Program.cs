@@ -9,8 +9,9 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllers();
 
-// Register concrete implementations
-builder.Services.AddSingleton<IWorkflowRepository, JsonFileWorkflowRepository>();
+// Register concrete database and message bus implementations
+builder.Services.AddDbContext<SchoolFormsDbContext>();
+builder.Services.AddScoped<IWorkflowRepository, EfWorkflowRepository>();
 builder.Services.AddSingleton<IMessageBus, JsonFileMessageBus>();
 
 // Register background event listener worker
@@ -29,6 +30,13 @@ builder.Services.AddCors(options =>
 builder.WebHost.UseUrls("http://localhost:5002");
 
 var app = builder.Build();
+
+// Ensure SQLite database is created on startup
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<SchoolFormsDbContext>();
+    db.Database.EnsureCreated();
+}
 
 app.UseCors("AllowAll");
 app.UseAuthorization();
