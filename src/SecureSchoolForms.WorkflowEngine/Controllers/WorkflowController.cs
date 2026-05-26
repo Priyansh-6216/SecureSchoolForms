@@ -70,10 +70,41 @@ public class WorkflowController : ControllerBase
         return Ok(new { Message = "Workflow step advanced.", NextStep = nextStep });
     }
 
+    [HttpPost("{workflowId}/reject")]
+    public async Task<IActionResult> RejectStep(Guid workflowId, [FromBody] RejectRequest request)
+    {
+        var instance = await _workflowRepository.GetWorkflowInstanceAsync(workflowId);
+        if (instance == null) return NotFound();
+
+        // 1. Update workflow to Rejected
+        await _workflowRepository.UpdateWorkflowStatusAsync(workflowId, instance.CurrentStep, "Rejected", null);
+
+        // 2. Publish step rejected event for audit & notification
+        var stepRejectedEvent = new WorkflowStepRejectedEvent
+        {
+            WorkflowId = workflowId,
+            SubmissionId = instance.SubmissionId,
+            RejectedStep = instance.CurrentStep,
+            RejectedBy = request.RejectedBy,
+            Reason = request.Reason,
+            RejectedAt = DateTime.UtcNow
+        };
+
+        await _messageBus.PublishMessageAsync(stepRejectedEvent, "workflow.stepRejected");
+
+        return Ok(new { Message = "Workflow step rejected.", Status = "Rejected" });
+    }
+
     [HttpGet("pending/{userId}")]
     public async Task<IActionResult> GetPendingApprovals(Guid userId)
     {
         var pending = await _workflowRepository.GetPendingApprovalsForUserAsync(userId);
         return Ok(pending);
     }
+}
+
+public class RejectRequest
+{
+    public Guid RejectedBy { get; set; }
+    public required string Reason { get; set; }
 }

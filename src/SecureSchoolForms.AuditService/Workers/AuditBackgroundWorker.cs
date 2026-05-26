@@ -51,6 +51,21 @@ public class AuditBackgroundWorker : BackgroundService
             await AppendAuditLogAsync(auditLog);
         });
 
+        // 3. Subscribe to workflow.stepRejected
+        JsonFileMessageBus.Subscribe<WorkflowStepRejectedEvent>("workflow.stepRejected", async (rejectedEvent) =>
+        {
+            var auditLog = new AuditLog
+            {
+                LogId = Guid.NewGuid(),
+                ActionType = "WorkflowRejected",
+                UserId = rejectedEvent.RejectedBy,
+                Timestamp = rejectedEvent.RejectedAt,
+                Metadata = JsonSerializer.Serialize(rejectedEvent)
+            };
+
+            await AppendAuditLogAsync(auditLog);
+        });
+
         return Task.CompletedTask;
     }
 

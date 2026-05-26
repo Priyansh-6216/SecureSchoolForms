@@ -71,11 +71,21 @@ function App() {
   const [additionalDetails, setAdditionalDetails] = useState('');
   const [attachedDocument, setAttachedDocument] = useState<string | null>(null);
   
-  // System configurations
-  const [currentUserRole, setCurrentUserRole] = useState<'Teacher' | 'Admin' | 'District'>('Teacher');
-  const [currentUserId, setCurrentUserId] = useState('a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d');
-  const [currentUserName, setCurrentUserName] = useState('Alex Rivers');
-  
+  // User profile session interface
+  interface UserProfile {
+    userId: string;
+    name: string;
+    email: string;
+    role: 'Teacher' | 'Admin' | 'District';
+  }
+
+  // Active session and form/login inputs
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [activeRejectWfId, setActiveRejectWfId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+
   // Status flags
   const [isBackendOnline, setIsBackendOnline] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
@@ -109,11 +119,13 @@ function App() {
         setNotifications(notifData);
       }
 
-      // 4. Fetch pending approvals (Workflows)
-      const workflowsRes = await fetch(`${API_BASE}/workflow/pending/${currentUserId}`);
-      if (workflowsRes.ok) {
-        const wfData = await workflowsRes.json();
-        setWorkflows(wfData);
+      // 4. Fetch pending approvals (Workflows) if user logged in
+      if (currentUser) {
+        const workflowsRes = await fetch(`${API_BASE}/workflow/pending/${currentUser.userId}`);
+        if (workflowsRes.ok) {
+          const wfData = await workflowsRes.json();
+          setWorkflows(wfData);
+        }
       }
 
       setSystemMessage({
@@ -134,7 +146,7 @@ function App() {
 
   useEffect(() => {
     loadSystemData();
-  }, [currentUserId]);
+  }, [currentUser]);
 
   // Clean messages automatically
   useEffect(() => {
@@ -147,14 +159,14 @@ function App() {
   // Form submission handler
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedForm || !studentName.trim()) return;
+    if (!selectedForm || !studentName.trim() || !currentUser) return;
 
     setLoading(true);
     const submissionId = crypto.randomUUID();
     const mockSubmission: FormSubmission = {
       submissionId,
       formId: selectedForm.formId,
-      userId: currentUserId,
+      userId: currentUser.userId,
       data: JSON.stringify({
         studentName,
         gradeLevel,
@@ -199,7 +211,7 @@ function App() {
       const audit: AuditLog = {
         logId: crypto.randomUUID(),
         actionType: 'FormSubmitted',
-        userId: currentUserId,
+        userId: currentUser.userId,
         timestamp: new Date().toISOString(),
         metadata: JSON.stringify(mockSubmission)
       };
@@ -232,6 +244,7 @@ function App() {
 
   // Workflow Approval handler
   const handleApprove = async (workflowId: string) => {
+    if (!currentUser) return;
     setLoading(true);
     
     if (isBackendOnline) {
@@ -239,7 +252,7 @@ function App() {
         const res = await fetch(`${API_BASE}/workflow/${workflowId}/approve`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(currentUserId)
+          body: JSON.stringify(currentUser.userId)
         });
         if (!res.ok) throw new Error('Approval failed');
         
@@ -292,7 +305,7 @@ function App() {
         const audit: AuditLog = {
           logId: crypto.randomUUID(),
           actionType: finalStatus === 'Completed' ? 'WorkflowCompleted' : `StepApproved: ${updatedWfs[targetWfIndex].currentStep}`,
-          userId: currentUserId,
+          userId: currentUser.userId,
           timestamp: new Date().toISOString(),
           metadata: JSON.stringify({ workflowId, nextStep })
         };
@@ -302,9 +315,9 @@ function App() {
         const notif: SimulatedNotification = {
           id: crypto.randomUUID(),
           type: 'SMS',
-          recipient: `+1 (555) 019-8732 (Officer: ${currentUserName})`,
+          recipient: `+1 (555) 019-8732 (Officer: ${currentUser.name})`,
           subject: finalStatus === 'Completed' ? 'Workflow fully completed!' : 'Workflow step advanced',
-          body: `Submission ${wf.submissionId} advanced from '${updatedWfs[targetWfIndex].currentStep}' to '${nextStep}' by ${currentUserName}.`,
+          body: `Submission ${wf.submissionId} advanced from '${updatedWfs[targetWfIndex].currentStep}' to '${nextStep}' by ${currentUser.name}.`,
           timestamp: new Date().toISOString()
         };
         setNotifications([notif, ...notifications]);
@@ -317,6 +330,212 @@ function App() {
     }
     setLoading(false);
   };
+
+  // Workflow Rejection handler
+  const handleReject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeRejectWfId || !rejectionReason.trim() || !currentUser) return;
+    setLoading(true);
+
+    if (isBackendOnline) {
+      try {
+        const res = await fetch(`${API_BASE}/workflow/${activeRejectWfId}/reject`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            rejectedBy: currentUser.userId,
+            reason: rejectionReason.trim()
+          })
+        });
+        if (!res.ok) throw new Error('Rejection failed');
+        setSystemMessage({ text: 'Workflow step rejected successfully.', type: 'success' });
+        loadSystemData();
+      } catch (err) {
+        setSystemMessage({ text: 'Failed to submit rejection via Gateway.', type: 'error' });
+      }
+    } else {
+      // Local simulation logic for rejection
+      const targetWfIndex = workflows.findIndex(w => w.workflowId === activeRejectWfId);
+      if (targetWfIndex !== -1) {
+        const updatedWfs = [...workflows];
+        const wf = { ...updatedWfs[targetWfIndex] };
+        
+        wf.status = 'Rejected';
+        wf.updatedAt = new Date().toISOString();
+        updatedWfs[targetWfIndex] = wf;
+        setWorkflows(updatedWfs);
+
+        // Update corresponding submission status to Rejected
+        const subIndex = submissions.findIndex(s => s.submissionId === wf.submissionId);
+        if (subIndex !== -1) {
+          const updatedSubs = [...submissions];
+          updatedSubs[subIndex] = {
+            ...updatedSubs[subIndex],
+            status: 'Rejected',
+            updatedAt: new Date().toISOString()
+          };
+          setSubmissions(updatedSubs);
+        }
+
+        // Add local Audit log
+        const audit: AuditLog = {
+          logId: crypto.randomUUID(),
+          actionType: 'WorkflowRejected',
+          userId: currentUser.userId,
+          timestamp: new Date().toISOString(),
+          metadata: JSON.stringify({ workflowId: activeRejectWfId, reason: rejectionReason })
+        };
+        setAuditLogs([audit, ...auditLogs]);
+
+        // Add local notification
+        const notif: SimulatedNotification = {
+          id: crypto.randomUUID(),
+          type: 'Email',
+          recipient: `student_linked_to_${wf.submissionId.substring(0, 8)}@school.edu`,
+          subject: 'Form Request Rejected',
+          body: `Important: Your form submission ${wf.submissionId} has been rejected at the '${wf.currentStep}' stage by User ${currentUser.name}. Reason: ${rejectionReason}`,
+          timestamp: new Date().toISOString()
+        };
+        setNotifications([notif, ...notifications]);
+
+        setSystemMessage({
+          text: `Simulation: Request rejected.`,
+          type: 'success'
+        });
+      }
+    }
+
+    // Reset states
+    setActiveRejectWfId(null);
+    setRejectionReason('');
+    setLoading(false);
+  };
+
+  // Secure User Session Authentication handler
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError(null);
+    setLoading(true);
+
+    const email = loginEmail.trim();
+    if (!email) {
+      setLoginError('Email is required.');
+      setLoading(false);
+      return;
+    }
+
+    if (isBackendOnline) {
+      try {
+        const res = await fetch(`${API_BASE}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        if (res.status === 401 || res.status === 404) {
+          throw new Error('User not found. Use a pre-configured school email.');
+        }
+        if (!res.ok) throw new Error('Auth Gateway Error');
+        const userData = await res.json();
+        setCurrentUser({
+          userId: userData.userId,
+          name: userData.name,
+          email: userData.email,
+          role: userData.role
+        });
+        setSystemMessage({ text: `Welcome back, ${userData.name}!`, type: 'success' });
+      } catch (err: any) {
+        setLoginError(err.message || 'Failed to authenticate with AuthService.');
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      // Simulate locally
+      const mockUsers = [
+        { userId: 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', name: 'Alex Rivers', email: 'alex.rivers@school.edu', role: 'Teacher' as const },
+        { userId: 'f5e4d3c2-b1a0-9e8d-7c6b-5a4b3c2d1e0f', name: 'Principal Eleanor', email: 'eleanor.vance@school.edu', role: 'Admin' as const },
+        { userId: '9e8d7c6b-5a4b-3c2d-1e0f-f5e4d3c2b1a0', name: 'Superintendent Davis', email: 'davis.officer@district.edu', role: 'District' as const }
+      ];
+      const match = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+      if (match) {
+        setCurrentUser(match);
+        setSystemMessage({ text: `Simulation: Logged in as ${match.name} (${match.role})`, type: 'success' });
+      } else {
+        setLoginError('Email not registered. Try: alex.rivers@school.edu, eleanor.vance@school.edu, or davis.officer@district.edu');
+      }
+      setLoading(false);
+    }
+  };
+
+  if (!currentUser) {
+    return (
+      <div className="portal-container login-mode">
+        {/* Background blobs for premium glassmorphic depth */}
+        <div className="blob-1"></div>
+        <div className="blob-2"></div>
+        
+        {/* Realtime dynamic toast notification alerts */}
+        {systemMessage && (
+          <div className={`toast-message ${systemMessage.type}`}>
+            <div className="toast-content">
+              <span className="toast-icon">
+                {systemMessage.type === 'success' && '✓'}
+                {systemMessage.type === 'error' && '✕'}
+                {systemMessage.type === 'info' && 'ℹ'}
+              </span>
+              <p>{systemMessage.text}</p>
+            </div>
+          </div>
+        )}
+
+        <div className="login-card-container">
+          <div className="login-card glass-pane animate-fade-in">
+            <div className="secure-badge">
+              <svg className="shield-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+              <span>SHIELD SECURE SIGN-IN</span>
+            </div>
+            <h2>SecureSchoolForms</h2>
+            <p className="login-subtitle">Zero-Trust Administrative Form Processing Dashboard</p>
+            
+            <form onSubmit={handleLogin} className="interactive-form login-form">
+              <div className="form-group">
+                <label>Administrative Email Address</label>
+                <input 
+                  type="email" 
+                  required 
+                  placeholder="e.g. alex.rivers@school.edu" 
+                  value={loginEmail}
+                  onChange={e => setLoginEmail(e.target.value)}
+                />
+              </div>
+              
+              {loginError && <p className="login-error-text">⚠️ {loginError}</p>}
+              
+              <button type="submit" className="login-submit-btn">
+                {loading ? "Authenticating..." : "Secure Sign In"}
+              </button>
+            </form>
+
+            <div className="mock-accounts-helper">
+              <h4>💡 Pre-registered Test Credentials:</h4>
+              <ul>
+                <li onClick={() => setLoginEmail('alex.rivers@school.edu')}>
+                  <strong>Teacher:</strong> <span>alex.rivers@school.edu</span>
+                </li>
+                <li onClick={() => setLoginEmail('eleanor.vance@school.edu')}>
+                  <strong>Principal:</strong> <span>eleanor.vance@school.edu</span>
+                </li>
+                <li onClick={() => setLoginEmail('davis.officer@district.edu')}>
+                  <strong>Superintendent:</strong> <span>davis.officer@district.edu</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="portal-container">
@@ -345,34 +564,15 @@ function App() {
 
           <div className="user-profile">
             <div className="avatar">
-              {currentUserName.split(' ').map(n => n[0]).join('')}
+              {currentUser.name.split(' ').map(n => n[0]).join('')}
             </div>
             <div className="user-details">
-              <div className="username">{currentUserName}</div>
-              <div className="role-selector">
-                <select 
-                  value={currentUserRole} 
-                  onChange={(e) => {
-                    const role = e.target.value as any;
-                    setCurrentUserRole(role);
-                    if (role === 'Teacher') {
-                      setCurrentUserName('Alex Rivers');
-                      setCurrentUserId('a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d');
-                    } else if (role === 'Admin') {
-                      setCurrentUserName('Principal Eleanor');
-                      setCurrentUserId('f5e4d3c2-b1a0-9e8d-7c6b-5a4b3c2d1e0f');
-                    } else {
-                      setCurrentUserName('Superintendent Davis');
-                      setCurrentUserId('9e8d7c6b-5a4b-3c2d-1e0f-f5e4d3c2b1a0');
-                    }
-                  }}
-                >
-                  <option value="Teacher">Teacher (Alex)</option>
-                  <option value="Admin">Principal (Eleanor)</option>
-                  <option value="District">Superintendent (Davis)</option>
-                </select>
-              </div>
+              <div className="username">{currentUser.name}</div>
+              <div className="user-role-badge">{currentUser.role}</div>
             </div>
+            <button className="sign-out-btn" onClick={() => setCurrentUser(null)}>
+              Sign Out
+            </button>
           </div>
         </div>
       </header>
@@ -537,12 +737,13 @@ function App() {
                             onChange={async (e) => {
                               if (e.target.files && e.target.files[0]) {
                                 const file = e.target.files[0];
+                                if (!currentUser) return;
                                 if (isBackendOnline) {
                                   try {
                                     setLoading(true);
                                     const formData = new FormData();
                                     formData.append("file", file);
-                                    formData.append("uploadedBy", currentUserId);
+                                    formData.append("uploadedBy", currentUser.userId);
                                     const uploadRes = await fetch(`${API_BASE}/document/upload`, {
                                       method: "POST",
                                       body: formData
@@ -712,15 +913,15 @@ function App() {
             </div>
 
             <div className="role-banner glass-pane">
-              <span className="banner-role-badge">{currentUserRole.toUpperCase()} VIEW</span>
-              <p>You are logged in as <strong>{currentUserName}</strong>. You see forms pending evaluation at the current stage.</p>
+              <span className="banner-role-badge">{currentUser.role.toUpperCase()} VIEW</span>
+              <p>You are logged in as <strong>{currentUser.name}</strong>. You see forms pending evaluation at the current stage.</p>
             </div>
 
             {workflows.filter(w => {
-              if (w.status === 'Completed') return false;
-              if (currentUserRole === 'Teacher' && w.currentStep === 'Teacher Review') return true;
-              if (currentUserRole === 'Admin' && w.currentStep === 'School Admin Review') return true;
-              if (currentUserRole === 'District' && w.currentStep === 'District Approval') return true;
+              if (w.status !== 'InProgress') return false;
+              if (currentUser.role === 'Teacher' && w.currentStep === 'Teacher Review') return true;
+              if (currentUser.role === 'Admin' && w.currentStep === 'School Admin Review') return true;
+              if (currentUser.role === 'District' && w.currentStep === 'District Approval') return true;
               return false;
             }).length === 0 ? (
               <div className="empty-state glass-pane">
@@ -728,15 +929,15 @@ function App() {
                   <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                   <polyline points="22 4 12 14.01 9 11.01"></polyline>
                 </svg>
-                <p>No pending approvals found for the role <strong>{currentUserRole}</strong> at this time.</p>
+                <p>No pending approvals found for the role <strong>{currentUser.role}</strong> at this time.</p>
               </div>
             ) : (
               <div className="approvals-grid">
                 {workflows.filter(w => {
-                  if (w.status === 'Completed') return false;
-                  if (currentUserRole === 'Teacher' && w.currentStep === 'Teacher Review') return true;
-                  if (currentUserRole === 'Admin' && w.currentStep === 'School Admin Review') return true;
-                  if (currentUserRole === 'District' && w.currentStep === 'District Approval') return true;
+                  if (w.status !== 'InProgress') return false;
+                  if (currentUser.role === 'Teacher' && w.currentStep === 'Teacher Review') return true;
+                  if (currentUser.role === 'Admin' && w.currentStep === 'School Admin Review') return true;
+                  if (currentUser.role === 'District' && w.currentStep === 'District Approval') return true;
                   return false;
                 }).map(wf => {
                   const matchingSub = submissions.find(s => s.submissionId === wf.submissionId);
@@ -744,7 +945,7 @@ function App() {
                   const subData = matchingSub ? JSON.parse(matchingSub.data) : { studentName: 'Unknown', gradeLevel: 'N/A' };
                   
                   return (
-                    <div key={wf.workflowId} className="approval-card glass-pane">
+                    <div key={wf.workflowId} className="approval-card glass-pane animate-fade-in">
                       <div className="approval-card-header">
                         <h4>{matchingForm?.type || 'Secure Form'}</h4>
                         <span className="step-indicator-pill">{wf.currentStep}</span>
@@ -768,7 +969,7 @@ function App() {
                       </div>
 
                       <div className="approval-card-actions">
-                        <button className="reject-action-btn" onClick={() => setSystemMessage({ text: 'Rejections require additional notes (Feature coming in Day 4).', type: 'info' })}>
+                        <button className="reject-action-btn" onClick={() => setActiveRejectWfId(wf.workflowId)}>
                           Reject
                         </button>
                         <button className="approve-action-btn" onClick={() => handleApprove(wf.workflowId)}>
@@ -846,6 +1047,43 @@ function App() {
           </section>
         )}
       </main>
+
+      {/* Rejection Comments Modal */}
+      {activeRejectWfId && (
+        <div className="modal-backdrop" onClick={() => setActiveRejectWfId(null)}>
+          <div className="modal-content glass-pane rejection-modal animate-fade-in" onClick={e => e.stopPropagation()}>
+            <button className="close-btn" onClick={() => {
+              setActiveRejectWfId(null);
+              setRejectionReason('');
+            }}>×</button>
+            <div className="modal-header">
+              <span className="pre-title red-accent">SECURITY REVIEW</span>
+              <h2>Reject Administrative Request</h2>
+            </div>
+            
+            <form onSubmit={handleReject} className="interactive-form">
+              <div className="form-group">
+                <label>Reason for Rejection (Mandatory)</label>
+                <textarea 
+                  rows={4} 
+                  required
+                  placeholder="Provide detailed security or administrative reasons for rejecting this request. E.g. Missing required proof of address document..."
+                  value={rejectionReason}
+                  onChange={e => setRejectionReason(e.target.value)}
+                />
+              </div>
+
+              <div className="modal-actions">
+                <button type="button" className="cancel-btn" onClick={() => {
+                  setActiveRejectWfId(null);
+                  setRejectionReason('');
+                }}>Cancel</button>
+                <button type="submit" className="submit-btn reject-submit-btn">Reject Submission</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

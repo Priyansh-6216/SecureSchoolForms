@@ -57,6 +57,22 @@ public class NotificationBackgroundWorker : BackgroundService
             await SendAndSaveNotificationAsync(notification);
         });
 
+        // 3. Subscribe to workflow.stepRejected
+        JsonFileMessageBus.Subscribe<WorkflowStepRejectedEvent>("workflow.stepRejected", async (rejectedEvent) =>
+        {
+            var notification = new SimulatedNotification
+            {
+                Id = Guid.NewGuid(),
+                Type = "Email",
+                Recipient = $"student_linked_to_{rejectedEvent.SubmissionId.ToString().Substring(0, 8)}@school.edu",
+                Subject = "Form Request Rejected",
+                Body = $"Important: Your form submission {rejectedEvent.SubmissionId} has been rejected at the '{rejectedEvent.RejectedStep}' stage by User {rejectedEvent.RejectedBy}. Reason: {rejectedEvent.Reason}",
+                Timestamp = DateTime.UtcNow
+            };
+
+            await SendAndSaveNotificationAsync(notification);
+        });
+
         return Task.CompletedTask;
     }
 
