@@ -1,21 +1,34 @@
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
-using SecureSchoolForms.Core.Interfaces;
 using SecureSchoolForms.Core.Infrastructure;
+using SecureSchoolForms.Core.Interfaces;
+using SecureSchoolForms.WorkflowEngine.Consumers;
 using SecureSchoolForms.WorkflowEngine.Workers;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 builder.Services.AddControllers();
 
-// Register concrete database and message bus implementations
+// Register database repository
 builder.Services.AddDbContext<SchoolFormsDbContext>();
 builder.Services.AddScoped<IWorkflowRepository, EfWorkflowRepository>();
-builder.Services.AddSingleton<IMessageBus, JsonFileMessageBus>();
 
-// Register background event listener worker
-builder.Services.AddHostedService<WorkflowBackgroundWorker>();
+// ── Dual-transport messaging ──────────────────────────────────────────────────
+// JsonFile mode → registers JsonFileMessageBus + WorkflowBackgroundWorker.
+// RabbitMQ mode → registers MassTransit with FormSubmittedConsumer.
+var provider = builder.Configuration["MessageBusSettings:Provider"] ?? "JsonFile";
+
+if (provider.Equals("RabbitMQ", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddCustomMessaging(builder.Configuration, x =>
+    {
+        x.AddConsumer<FormSubmittedConsumer>();
+    });
+}
+else
+{
+    builder.Services.AddCustomMessaging(builder.Configuration);
+    // Legacy JsonFile-mode subscription worker
+    builder.Services.AddHostedService<WorkflowBackgroundWorker>();
+}
 
 builder.Services.AddCors(options =>
 {

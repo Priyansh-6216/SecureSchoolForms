@@ -1,19 +1,31 @@
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
-using SecureSchoolForms.Core.Interfaces;
 using SecureSchoolForms.Core.Infrastructure;
+using SecureSchoolForms.NotificationService.Consumers;
 using SecureSchoolForms.NotificationService.Workers;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 builder.Services.AddControllers();
 
-// Register concrete implementations
-builder.Services.AddSingleton<IMessageBus, JsonFileMessageBus>();
+// ── Dual-transport messaging ──────────────────────────────────────────────────
+// JsonFile mode → JsonFileMessageBus + NotificationBackgroundWorker.
+// RabbitMQ mode → MassTransit with all three notification consumers.
+var provider = builder.Configuration["MessageBusSettings:Provider"] ?? "JsonFile";
 
-// Register background notification worker
-builder.Services.AddHostedService<NotificationBackgroundWorker>();
+if (provider.Equals("RabbitMQ", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddCustomMessaging(builder.Configuration, x =>
+    {
+        x.AddConsumer<FormSubmittedNotificationConsumer>();
+        x.AddConsumer<WorkflowStepCompletedNotificationConsumer>();
+        x.AddConsumer<WorkflowStepRejectedNotificationConsumer>();
+    });
+}
+else
+{
+    builder.Services.AddCustomMessaging(builder.Configuration);
+    // Legacy JsonFile-mode subscription worker
+    builder.Services.AddHostedService<NotificationBackgroundWorker>();
+}
 
 builder.Services.AddCors(options =>
 {

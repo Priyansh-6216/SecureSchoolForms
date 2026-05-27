@@ -105,6 +105,49 @@ To run the full backend stack:
 
 ---
 
+## 🚀 Day 6: Enterprise Messaging (MassTransit) & Cloud Storage Abstraction
+
+### Dual-Transport Message Bus
+
+The message bus is now **provider-aware** and configurable via `appsettings.json`:
+
+```json
+"MessageBusSettings": {
+  "Provider": "JsonFile"
+}
+```
+
+| Provider | Behaviour |
+| :--- | :--- |
+| `"JsonFile"` **(default)** | Zero-dependency local event bus using `.events/` folder + `FileSystemWatcher`. **No Docker required.** |
+| `"RabbitMQ"` | Full enterprise MassTransit bus connecting to a live RabbitMQ broker. Background workers are replaced by native `IConsumer<T>` classes. |
+
+#### Running with RabbitMQ (Optional)
+
+To enable the full enterprise MassTransit transport, spin up a RabbitMQ broker locally with Docker:
+
+```bash
+docker run -d --name rabbitmq \
+  -p 5672:5672 \
+  -p 15672:15672 \
+  rabbitmq:3-management
+```
+
+Then set `"Provider": "RabbitMQ"` in each service's `appsettings.json`. The RabbitMQ Management UI is available at `http://localhost:15672` (user: `guest` / pass: `guest`).
+
+### IStorageProvider — Cloud Document Storage Abstraction
+
+`DocumentService` now uses a **swappable `IStorageProvider` interface** for all file operations:
+
+| Implementation | When Used |
+| :--- | :--- |
+| `LocalStorageProvider` | Default — stores files in `.data/documents/` |
+| `AzureBlobStorageProvider` *(future)* | Swap in for production Azure deployments |
+
+Every upload and download logs a **mock Azure Key Vault interaction** simulating envelope encryption key resolution at `https://shield-keyvault.vault.azure.net/keys/envelope-key`.
+
+---
+
 ## 📁 Project Structure
 
 ```

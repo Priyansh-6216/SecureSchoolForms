@@ -1,20 +1,34 @@
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
-using SecureSchoolForms.Core.Interfaces;
 using SecureSchoolForms.Core.Infrastructure;
+using SecureSchoolForms.AuditService.Consumers;
 using SecureSchoolForms.AuditService.Workers;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 builder.Services.AddControllers();
 
-// Register concrete database and message bus implementations
+// Register database
 builder.Services.AddDbContext<SchoolFormsDbContext>();
-builder.Services.AddSingleton<IMessageBus, JsonFileMessageBus>();
 
-// Register background audit processor worker
-builder.Services.AddHostedService<AuditBackgroundWorker>();
+// ── Dual-transport messaging ──────────────────────────────────────────────────
+// JsonFile mode → JsonFileMessageBus + AuditBackgroundWorker.
+// RabbitMQ mode → MassTransit with all three audit consumers.
+var provider = builder.Configuration["MessageBusSettings:Provider"] ?? "JsonFile";
+
+if (provider.Equals("RabbitMQ", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddCustomMessaging(builder.Configuration, x =>
+    {
+        x.AddConsumer<FormSubmittedAuditConsumer>();
+        x.AddConsumer<WorkflowStepCompletedAuditConsumer>();
+        x.AddConsumer<WorkflowStepRejectedAuditConsumer>();
+    });
+}
+else
+{
+    builder.Services.AddCustomMessaging(builder.Configuration);
+    // Legacy JsonFile-mode subscription worker
+    builder.Services.AddHostedService<AuditBackgroundWorker>();
+}
 
 builder.Services.AddCors(options =>
 {

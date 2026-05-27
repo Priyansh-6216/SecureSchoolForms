@@ -1,15 +1,19 @@
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
-using SecureSchoolForms.Core.Interfaces;
 using SecureSchoolForms.Core.Infrastructure;
+using SecureSchoolForms.Core.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 builder.Services.AddControllers();
 
-// Register concrete implementations
-builder.Services.AddSingleton<IMessageBus, JsonFileMessageBus>();
+// ── Storage Provider ──────────────────────────────────────────────────────────
+// Register LocalStorageProvider as the IStorageProvider implementation.
+// In a production deployment, swap this for AzureBlobStorageProvider or S3StorageProvider.
+builder.Services.AddSingleton<IStorageProvider, LocalStorageProvider>();
+
+// ── Message Bus ───────────────────────────────────────────────────────────────
+// DocumentService only publishes (currently no outbound events), so we wire the
+// messaging stack without any consumers.
+builder.Services.AddCustomMessaging(builder.Configuration);
 
 builder.Services.AddCors(options =>
 {

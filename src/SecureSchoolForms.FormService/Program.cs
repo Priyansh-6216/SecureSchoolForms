@@ -1,20 +1,21 @@
-using System;
-using System.Linq;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
-using SecureSchoolForms.Core.Entities;
-using SecureSchoolForms.Core.Interfaces;
 using SecureSchoolForms.Core.Infrastructure;
+using SecureSchoolForms.Core.Interfaces;
+using SecureSchoolForms.Core.Entities;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 builder.Services.AddControllers();
 
-// Register concrete database and message bus implementations
+// Register database repository
 builder.Services.AddDbContext<SchoolFormsDbContext>();
 builder.Services.AddScoped<IFormRepository, EfFormRepository>();
-builder.Services.AddSingleton<IMessageBus, JsonFileMessageBus>();
+
+// ── Dual-transport messaging ──────────────────────────────────────────────────
+// Reads MessageBusSettings:Provider from appsettings.json.
+// "JsonFile" (default) → zero-dependency local bus.
+// "RabbitMQ"           → MassTransit enterprise bus.
+// FormService only publishes — no consumers registered here.
+builder.Services.AddCustomMessaging(builder.Configuration);
 
 builder.Services.AddCors(options =>
 {
@@ -35,7 +36,7 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<SchoolFormsDbContext>();
     db.Database.EnsureCreated();
-    
+
     if (!db.Forms.Any())
     {
         db.Forms.AddRange(
