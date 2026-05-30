@@ -9,14 +9,12 @@ namespace SecureSchoolForms.DocumentService.Controllers;
 public class DocumentController : ControllerBase
 {
     private readonly IStorageProvider _storageProvider;
+    private readonly IKeyVaultProvider _keyVaultProvider;
 
-    // Mock Azure Key Vault endpoint — simulates envelope encryption key resolution
-    // In production, this would call Azure.Security.KeyVault.Keys to unwrap the DEK.
-    private const string MockKeyVaultUri = "https://shield-keyvault.vault.azure.net/keys/envelope-key";
-
-    public DocumentController(IStorageProvider storageProvider)
+    public DocumentController(IStorageProvider storageProvider, IKeyVaultProvider keyVaultProvider)
     {
         _storageProvider = storageProvider;
+        _keyVaultProvider = keyVaultProvider;
     }
 
     [HttpPost("upload")]
@@ -30,14 +28,6 @@ public class DocumentController : ControllerBase
 
         try
         {
-            // ── Mock Key Vault: resolve envelope encryption key ────────────────
-            var mockAesKey = Convert.ToBase64String(
-                System.Text.Encoding.UTF8.GetBytes($"key_{Guid.NewGuid().ToString()[..10]}"));
-
-            Console.WriteLine($"[DocumentService] Resolving envelope key from Key Vault:");
-            Console.WriteLine($"  URI:    {MockKeyVaultUri}");
-            Console.WriteLine($"  KeyRef: {mockAesKey[..12]}... (truncated for security)");
-
             // ── Upload via IStorageProvider (local or cloud) ───────────────────
             using var stream = file.OpenReadStream();
             var fileUrl = await _storageProvider.UploadFileAsync(stream, file.FileName);
@@ -45,11 +35,21 @@ public class DocumentController : ControllerBase
             // Extract the document GUID from the returned URL path
             var documentId = Guid.Parse(fileUrl.Split('/')[^1]);
 
+            // ── Key Vault: store envelope encryption key ───────────────────────
+            var mockAesKey = Convert.ToBase64String(
+                System.Text.Encoding.UTF8.GetBytes($"key_{Guid.NewGuid().ToString()[..10]}"));
+            var keyName = $"envelope-key-{documentId}";
+            await _keyVaultProvider.SetSecretAsync(keyName, mockAesKey);
+
+            Console.WriteLine($"[DocumentService] Storing envelope key in Key Vault:");
+            Console.WriteLine($"  SecretName: {keyName}");
+            Console.WriteLine($"  KeyRef:     {mockAesKey[..12]}... (truncated for security)");
+
             var doc = new Document
             {
                 DocumentId = documentId,
                 FileUrl = fileUrl,
-                EncryptedKey = mockAesKey,
+                EncryptedKey = keyName, // Save the secret reference
                 UploadedBy = uploadedBy,
                 UploadedAt = DateTime.UtcNow,
                 Status = "Uploaded"
@@ -70,15 +70,26 @@ public class DocumentController : ControllerBase
     {
         try
         {
-            // ── Mock Key Vault: log key retrieval for audit trail ──────────────
+            // ── Key Vault: retrieve envelope key for decryption ────────────────
+            var keyName = $"envelope-key-{id}";
+            string resolvedKey;
+            try
+            {
+                resolvedKey = await _keyVaultProvider.GetSecretAsync(keyName);
+            }
+            catch (Exception)
+            {
+                resolvedKey = "Key-Not-Found";
+            }
+
             Console.WriteLine($"[DocumentService] Key Vault access for document {id}:");
-            Console.WriteLine($"  URI: {MockKeyVaultUri}/versions/latest");
+            Console.WriteLine($"  SecretName: {keyName}");
+            Console.WriteLine($"  ResolvedKey: {resolvedKey[..Math.Min(12, resolvedKey.Length)]}... (truncated for security)");
 
             var fileUrl = $"/api/document/download/{id}";
             var stream = await _storageProvider.DownloadFileAsync(fileUrl);
 
             // Determine MIME type from the file extension stored on disk
-            // (the LocalStorageProvider preserves the original extension)
             var mimeType = "application/octet-stream";
             return File(stream, mimeType, $"{id}");
         }

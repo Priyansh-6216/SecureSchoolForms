@@ -146,6 +146,37 @@ Then set `"Provider": "RabbitMQ"` in each service's `appsettings.json`. The Rabb
 
 Every upload and download logs a **mock Azure Key Vault interaction** simulating envelope encryption key resolution at `https://shield-keyvault.vault.azure.net/keys/envelope-key`.
 
+## 🚀 Day 7: Containerization & Multi-Container Orchestration (Docker & Compose)
+
+The entire decentralized microservice architecture can now be spun up as a containerized stack in a single command. 
+
+### Key Containerization Features:
+1. **Multi-Stage Dockerfiles**: Created optimized Dockerfiles for all 7 microservices (`.NET 8`) using layered caching for package restores, and a Node-to-Nginx multi-stage build for the React frontend.
+2. **YARP Gateway Service Resolution**: The gateway dynamically resolves routing endpoints using internal Docker Compose DNS names via environment overrides (`ReverseProxy__Clusters__*__Destinations__*__Address`), preserving local configuration portability.
+3. **Shared Container Volumes**:
+   - `school-forms-data` is shared among data-holding services to keep the SQLite database (`school_forms.db`) and uploaded files in sync.
+   - `school-forms-events` enables full multi-container event propagation when running in `JsonFile` local event bus mode.
+4. **RabbitMQ Coordination**: Integrates a `rabbitmq:3-management` broker with container health checks, ensuring the microservices wait to start until the broker is ready to accept connections.
+
+### Running with Docker Compose
+
+1. **Build the entire stack**:
+   ```bash
+   docker compose build
+   ```
+2. **Start all services (Frontend, Gateway, RabbitMQ, and 6 microservices)**:
+   ```bash
+   docker compose up -d
+   ```
+3. **Verify running containers**:
+   ```bash
+   docker compose ps
+   ```
+4. **Access the applications**:
+   - **Interactive UI Portal**: `http://localhost:5173`
+   - **YARP API Gateway**: `http://localhost:5000`
+   - **RabbitMQ Management Dashboard**: `http://localhost:15672` (guest / guest)
+
 ---
 
 ## 📁 Project Structure

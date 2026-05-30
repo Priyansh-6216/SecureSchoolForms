@@ -5,10 +5,21 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 
+// ── Key Vault Provider ────────────────────────────────────────────────────────
+builder.Services.AddSingleton<IKeyVaultProvider, AzureKeyVaultProvider>();
+
 // ── Storage Provider ──────────────────────────────────────────────────────────
-// Register LocalStorageProvider as the IStorageProvider implementation.
-// In a production deployment, swap this for AzureBlobStorageProvider or S3StorageProvider.
-builder.Services.AddSingleton<IStorageProvider, LocalStorageProvider>();
+var storageProvider = builder.Configuration["StorageSettings:Provider"] ?? "LocalStorage";
+Console.WriteLine($"[DocumentService] Using storage provider: {storageProvider}");
+
+if (storageProvider.Equals("AzureBlob", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddSingleton<IStorageProvider, AzureBlobStorageProvider>();
+}
+else
+{
+    builder.Services.AddSingleton<IStorageProvider, LocalStorageProvider>();
+}
 
 // ── Message Bus ───────────────────────────────────────────────────────────────
 // DocumentService only publishes (currently no outbound events), so we wire the
@@ -25,7 +36,7 @@ builder.Services.AddCors(options =>
     });
 });
 
-builder.WebHost.UseUrls("http://localhost:5006");
+builder.WebHost.UseUrls("http://*:5006");
 
 var app = builder.Build();
 

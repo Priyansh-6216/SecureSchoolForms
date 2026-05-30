@@ -1,0 +1,173 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: school_rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api-gateway:
+    image: secureschoolforms-apigateway
+    build:
+      context: .
+      dockerfile: src/SecureSchoolForms.ApiGateway/Dockerfile
+    container_name: school_api_gateway
+    ports:
+      - "5000:5000"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ReverseProxy__Clusters__form-cluster__Destinations__form-destination__Address=http://form-service:5001/
+      - ReverseProxy__Clusters__workflow-cluster__Destinations__workflow-destination__Address=http://workflow-engine:5002/
+      - ReverseProxy__Clusters__audit-cluster__Destinations__audit-destination__Address=http://audit-service:5003/
+      - ReverseProxy__Clusters__notification-cluster__Destinations__notification-destination__Address=http://notification-service:5004/
+      - ReverseProxy__Clusters__auth-cluster__Destinations__auth-destination__Address=http://auth-service:5005/
+      - ReverseProxy__Clusters__document-cluster__Destinations__document-destination__Address=http://document-service:5006/
+    depends_on:
+      - form-service
+      - workflow-engine
+      - audit-service
+      - notification-service
+      - auth-service
+      - document-service
+
+  form-service:
+    image: secureschoolforms-formservice
+    build:
+      context: .
+      dockerfile: src/SecureSchoolForms.FormService/Dockerfile
+    container_name: school_form_service
+    ports:
+      - "5001:5001"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - MessageBusSettings__Provider=RabbitMQ
+      - MessageBusSettings__RabbitMQ__Host=rabbitmq
+    volumes:
+      - school-forms-data:/app/.data
+      - school-forms-events:/app/.events
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  workflow-engine:
+    image: secureschoolforms-workflowengine
+    build:
+      context: .
+      dockerfile: src/SecureSchoolForms.WorkflowEngine/Dockerfile
+    container_name: school_workflow_engine
+    ports:
+      - "5002:5002"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - MessageBusSettings__Provider=RabbitMQ
+      - MessageBusSettings__RabbitMQ__Host=rabbitmq
+    volumes:
+      - school-forms-data:/app/.data
+      - school-forms-events:/app/.events
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  audit-service:
+    image: secureschoolforms-auditservice
+    build:
+      context: .
+      dockerfile: src/SecureSchoolForms.AuditService/Dockerfile
+    container_name: school_audit_service
+    ports:
+      - "5003:5003"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - MessageBusSettings__Provider=RabbitMQ
+      - MessageBusSettings__RabbitMQ__Host=rabbitmq
+    volumes:
+      - school-forms-data:/app/.data
+      - school-forms-events:/app/.events
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  notification-service:
+    image: secureschoolforms-notificationservice
+    build:
+      context: .
+      dockerfile: src/SecureSchoolForms.NotificationService/Dockerfile
+    container_name: school_notification_service
+    ports:
+      - "5004:5004"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - MessageBusSettings__Provider=RabbitMQ
+      - MessageBusSettings__RabbitMQ__Host=rabbitmq
+    volumes:
+      - school-forms-events:/app/.events
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  auth-service:
+    image: secureschoolforms-authservice
+    build:
+      context: .
+      dockerfile: src/SecureSchoolForms.AuthService/Dockerfile
+    container_name: school_auth_service
+    ports:
+      - "5005:5005"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+    volumes:
+      - school-forms-events:/app/.events
+
+  document-service:
+    image: secureschoolforms-documentservice
+    build:
+      context: .
+      dockerfile: src/SecureSchoolForms.DocumentService/Dockerfile
+    container_name: school_document_service
+    ports:
+      - "5006:5006"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - MessageBusSettings__Provider=RabbitMQ
+      - MessageBusSettings__RabbitMQ__Host=rabbitmq
+      - StorageSettings__Provider=AzureBlob
+      - StorageSettings__AzureBlob__ConnectionString=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM0gYhgCQJAFqgVYJCSD5Ux31U4Eb5p1ia1gCgkrtS8hx54eC78n9k4Q5J1OFaY6aUTUV16%2F%2F%2Fw%3D%3D;BlobEndpoint=http://azurite:10000/devstoreaccount1;
+    volumes:
+      - school-forms-data:/app/.data
+      - school-forms-events:/app/.events
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      azurite:
+        condition: service_started
+
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite
+    container_name: school_azurite
+    ports:
+      - "10000:10000"
+    volumes:
+      - school-azurite-data:/data
+
+  frontend:
+    image: secureschoolforms-frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: school_frontend
+    ports:
+      - "5173:80"
+    environment:
+      - VITE_API_BASE=http://localhost:5000/api
+    depends_on:
+      - api-gateway
+
+volumes:
+  school-forms-data:
+  school-forms-events:
+  school-azurite-data:

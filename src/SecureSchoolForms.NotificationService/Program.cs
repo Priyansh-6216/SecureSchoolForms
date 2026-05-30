@@ -37,7 +37,7 @@ builder.Services.AddCors(options =>
     });
 });
 
-builder.WebHost.UseUrls("http://localhost:5004");
+builder.WebHost.UseUrls("http://*:5004");
 
 var app = builder.Build();
 
