@@ -178,7 +178,39 @@ The entire decentralized microservice architecture can now be spun up as a conta
    - **RabbitMQ Management Dashboard**: `http://localhost:15672` (guest / guest)
 
 ---
+## 🚀 Day 8: Observability, Secure File Delivery, and Polished Deployment
 
+Day 8 focuses on turning the stack into a production-ready developer experience with health checks, better secure file handling, and clearer build/run guidance.
+
+### Day 8 Refinements:
+- Added **consistent `/health` endpoints** to the API Gateway and every backend microservice, enabling container orchestration and monitoring.
+- Improved **document download UX** by preserving the original uploaded filename and resolving the correct MIME type on download.
+- Kept Azure emulation intact with **Azurite-backed Azure Blob Storage** and a resilient **mock Key Vault fallback** for local developer scenarios.
+- Clarified **build and run instructions** for both local dev and Docker Compose deployments.
+
+### Build & Run (Day 8)
+1. **Install frontend dependencies**:
+   ```bash
+   cd frontend
+   npm install
+   ```
+2. **Build the frontend**:
+   ```bash
+   npm run build
+   ```
+3. **Run the full containerized stack**:
+   ```bash
+   docker compose build
+   docker compose up -d
+   ```
+4. **Verify service health**:
+   ```bash
+   curl http://localhost:5000/health
+   curl http://localhost:5001/health
+   curl http://localhost:5002/health
+   ```
+
+---
 ## 📁 Project Structure
 
 ```

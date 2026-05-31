@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.StaticFiles;
 using SecureSchoolForms.Core.Entities;
 using SecureSchoolForms.Core.Interfaces;
 
@@ -50,6 +51,7 @@ public class DocumentController : ControllerBase
                 DocumentId = documentId,
                 FileUrl = fileUrl,
                 EncryptedKey = keyName, // Save the secret reference
+                OriginalFileName = file.FileName,
                 UploadedBy = uploadedBy,
                 UploadedAt = DateTime.UtcNow,
                 Status = "Uploaded"
@@ -87,11 +89,14 @@ public class DocumentController : ControllerBase
             Console.WriteLine($"  ResolvedKey: {resolvedKey[..Math.Min(12, resolvedKey.Length)]}... (truncated for security)");
 
             var fileUrl = $"/api/document/download/{id}";
-            var stream = await _storageProvider.DownloadFileAsync(fileUrl);
+            var download = await _storageProvider.DownloadFileAsync(fileUrl);
 
-            // Determine MIME type from the file extension stored on disk
-            var mimeType = "application/octet-stream";
-            return File(stream, mimeType, $"{id}");
+            var contentTypeProvider = new FileExtensionContentTypeProvider();
+            var mimeType = contentTypeProvider.TryGetContentType(download.FileName, out var detectedType)
+                ? detectedType
+                : "application/octet-stream";
+
+            return File(download.Stream, mimeType, download.FileName);
         }
         catch (FileNotFoundException)
         {

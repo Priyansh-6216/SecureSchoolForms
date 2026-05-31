@@ -72,5 +72,6 @@ using (var scope = app.Services.CreateScope())
 app.UseCors("AllowAll");
 app.UseAuthorization();
 app.MapControllers();
+app.MapGet("/health", () => Results.Ok(new { status = "Healthy" }));
 
 app.Run();

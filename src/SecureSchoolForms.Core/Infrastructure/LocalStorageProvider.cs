@@ -39,9 +39,9 @@ public class LocalStorageProvider : IStorageProvider
 
     /// <summary>
     /// Resolves the logical URL (e.g., /api/document/download/{guid}) back
-    /// to a physical path and returns a read-only stream.
+    /// to a physical path and returns a read-only stream and file name.
     /// </summary>
-    public Task<Stream> DownloadFileAsync(string fileUrl)
+    public Task<StorageDownloadResult> DownloadFileAsync(string fileUrl)
     {
         // Extract the GUID segment from the URL
         var parts = fileUrl.TrimEnd('/').Split('/');
@@ -58,7 +58,12 @@ public class LocalStorageProvider : IStorageProvider
             throw new FileNotFoundException($"Document '{documentId}' not found in local storage.");
         }
 
-        Stream stream = new FileStream(matchingFiles[0], FileMode.Open, FileAccess.Read, FileShare.Read);
-        return Task.FromResult(stream);
+        var physicalPath = matchingFiles[0];
+        Stream stream = new FileStream(physicalPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        return Task.FromResult(new StorageDownloadResult
+        {
+            Stream = stream,
+            FileName = Path.GetFileName(physicalPath)
+        });
     }
 }

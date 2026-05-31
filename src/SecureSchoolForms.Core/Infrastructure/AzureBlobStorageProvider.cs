@@ -38,7 +38,7 @@ public class AzureBlobStorageProvider : IStorageProvider
         return $"/api/document/download/{documentId}";
     }
 
-    public async Task<Stream> DownloadFileAsync(string fileUrl)
+    public async Task<StorageDownloadResult> DownloadFileAsync(string fileUrl)
     {
         var parts = fileUrl.TrimEnd('/').Split('/');
         var idPart = parts[^1];
@@ -66,6 +66,11 @@ public class AzureBlobStorageProvider : IStorageProvider
         var blobClient = containerClient.GetBlobClient(targetBlobName);
         
         Console.WriteLine($"[AzureBlobStorageProvider] Downloading blob stream for '{targetBlobName}'");
-        return await blobClient.OpenReadAsync();
+        var stream = await blobClient.OpenReadAsync();
+        return new StorageDownloadResult
+        {
+            Stream = stream,
+            FileName = Path.GetFileName(targetBlobName)
+        };
     }
 }

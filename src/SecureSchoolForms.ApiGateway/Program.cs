@@ -25,5 +25,6 @@ var app = builder.Build();
 
 app.UseCors("AllowFrontend");
 app.MapReverseProxy();
+app.MapGet("/health", () => Results.Ok(new { status = "Healthy" }));
 
 app.Run();
