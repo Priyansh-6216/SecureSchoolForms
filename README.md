@@ -1,14 +1,39 @@
 # 🛡️ SecureSchoolForms
 
-An advanced, decentralized, **event-driven administrative portal** designed for school districts to securely submit, route, approve, and audit student forms. 
+SecureSchoolForms is an event-driven administrative portal that helps school districts securely submit, route, approve, and audit student forms. It is built using **modular C# .NET 8 microservices**, a **YARP API Gateway**, and a **React + Vite glassmorphic dashboard**.
 
-Built using a **zero-trust design philosophy**, the system decomposes administrative actions into modular, isolated C# .NET 8 microservices, coordinated via an event-driven pub-sub architecture, and driven by a state-of-the-art **glassmorphic React dashboard frontend**.
+![Architecture diagram](docs/architecture.svg)
+
+## Table of Contents
+- [Overview](#overview)
+- [Architecture](#architecture)
+- [Services & Ports](#services--ports)
+- [Quick Start](#quick-start)
+- [API Discovery](#api-discovery)
+- [Day 6–9 Highlights](#day-6-9-highlights)
+- [Project Structure](#project-structure)
 
 ---
 
-## 🏗️ System Architecture
+## Overview
 
-The solution implements a zero-trust, event-driven pattern with YARP (Yet Another Reverse Proxy) serving as the entry API Gateway. To ensure the environment remains **self-contained and zero-dependency** for local execution, the microservices communicate asynchronously using a custom **JSON File-Based Message Bus** with `FileSystemWatcher` acting as a real-time reactive pub-sub hub.
+The platform uses a zero-trust, event-driven design with a local-first option for easy development. Backends communicate through a shared message bus and local persistence layer, while the frontend can run independently in simulation mode when the backend is not available.
+
+## Architecture
+
+The core architecture is:
+- `frontend` → sends HTTP requests to `SecureSchoolForms.ApiGateway`
+- `ApiGateway` → routes traffic to microservices on ports `5001..5006`
+- `FormService` → publishes events that drive workflow, audit, and notification services
+- `WorkflowEngine` → advances multi-step school office approvals
+- `AuditService` → records compliance logs
+- `NotificationService` → emits mock SMS/email alerts
+- `AuthService` → validates user identities
+- `DocumentService` → stores supporting documents and resolves mock Key Vault secrets
+
+### Architecture Diagram
+
+![Architecture diagram](docs/architecture.svg)
 
 ```mermaid
 graph TD
@@ -21,212 +46,135 @@ graph TD
     Gateway -->|api/auth| AuthSvc[AuthService: Port 5005]
     Gateway -->|api/document| DocSvc[DocumentService: Port 5006]
 
-    %% Event-driven flows
     FormSvc -->|Publish Event| MessageBus[[JsonFileMessageBus: .events/]]
     WFEngine -->|Publish Event| MessageBus
-    
     MessageBus -.->|Real-time Watcher| WFEngine
     MessageBus -.->|Real-time Watcher| AuditSvc
     MessageBus -.->|Real-time Watcher| NotifSvc
-    
-    %% Local Data Store
-    FormSvc -->|Persist Submissions| LocalDB[(Local JSON Store: .data/)]
+
+    FormSvc -->|Persist Submissions| LocalDB[(.data/)]
     WFEngine -->|Persist Instances| LocalDB
     AuditSvc -->|Append Logs| LocalDB
     NotifSvc -->|Append Dispatches| LocalDB
     DocSvc -->|Save Documents| LocalDB
 ```
 
----
+## Services & Ports
 
-## 🚦 Port Allocation & Microservices
+| Service | Port | Purpose |
+| --- | --- | --- |
+| `SecureSchoolForms.ApiGateway` | `5000` | YARP reverse proxy that connects the dashboard to backend services |
+| `SecureSchoolForms.FormService` | `5001` | Manages form templates, submissions, and event publishing |
+| `SecureSchoolForms.WorkflowEngine` | `5002` | Advances approvals across teacher, admin, and district roles |
+| `SecureSchoolForms.AuditService` | `5003` | Persists immutable audit trail events |
+| `SecureSchoolForms.NotificationService` | `5004` | Emits mock notifications for workflow changes |
+| `SecureSchoolForms.AuthService` | `5005` | Validates user login and roles |
+| `SecureSchoolForms.DocumentService` | `5006` | Stores documents and resolves mock Key Vault secrets |
+| `frontend` | `5173` | React portal with simulation mode and API integration |
 
-The application is split into 8 logical projects:
-
-| Service Name | Port | Description |
-| :--- | :--- | :--- |
-| **`SecureSchoolForms.ApiGateway`** | `5000` | YARP-based gateway routing requests to the target microservice, handling global CORS policies. |
-| **`SecureSchoolForms.FormService`** | `5001` | Manages available form templates and submissions. Seeding forms (Enrollment, Transfer, Transcripts) on start. |
-| **`SecureSchoolForms.WorkflowEngine`** | `5002` | Tracks and advances multi-step validation processes (Teacher Review ➔ Admin Review ➔ District Approval). |
-| **`SecureSchoolForms.AuditService`** | `5003` | Collects all event logs for secure, immutable compliance reports. |
-| **`SecureSchoolForms.NotificationService`** | `5004` | Listens to submission and workflow changes to dispatch mock SMS and Email alerts. |
-| **`SecureSchoolForms.AuthService`** | `5005` | Handles user authentication and lists available directory roles. |
-| **`SecureSchoolForms.DocumentService`** | `5006` | Securely stores and serves uploaded supporting documents in a local encrypted structure. |
-| **`frontend`** | `5173` | React, TypeScript & Vite Single Page App built using bespoke Vanilla CSS and responsive styling. |
-
----
-
-## 🔒 Security & Technical Design
-
-### 1. File-System Event Bus (`JsonFileMessageBus`)
-To simulate an enterprise broker (like Azure Service Bus or RabbitMQ) without external dependencies, we use the local file system. 
-- **Publish**: Writing an event envelope JSON file into a shared `.events/` folder.
-- **Subscribe**: Registering a static callback that triggers a `FileSystemWatcher` on `.events/`. When a new event file is written, it is read, parsed, and routed to active handlers in milliseconds.
-
-### 2. Document Security & Zero-Trust
-- Files uploaded to the **`DocumentService`** are stored in a dedicated `.data/documents` subdirectory under hashed GUID names.
-- The service returns a mock AES decryption key along with the document reference, simulating an envelope encryption flow where assets are decrypted only when accessed by authenticated officials.
-
-### 3. Real-time Audit Trails
-- Every critical user action (e.g. form submission, workflow step approval) publishes a tracking event.
-- The **`AuditService`** consumes these messages asynchronously, creating logs in `.data/audit_logs.json` that are displayed live in the client's Security Portal.
-
----
-
-## 🚀 Quick Start Guide
+## Quick Start
 
 ### Prerequisites
 - [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-- [Node.js (v18+)](https://nodejs.org/)
+- [Node.js 18+](https://nodejs.org/)
 
-### 1. Launching the Frontend (Simulation Mode)
-The frontend dashboard features an **Intelligent Microservice Emulator**. If the .NET backend is not running, it gracefully falls back to local-first browser state simulation.
+### Frontend Only (Simulation Mode)
 
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-Open `http://localhost:5173` in your browser to interact with the full experience.
 
-### 2. Launching the Microservices (E2E Mode)
-To run the full backend stack:
-1. Open the solution file `SecureSchoolForms.sln` in Visual Studio, or run the services concurrently via terminal:
-   ```bash
-   dotnet run --project src/SecureSchoolForms.ApiGateway
-   dotnet run --project src/SecureSchoolForms.FormService
-   dotnet run --project src/SecureSchoolForms.WorkflowEngine
-   dotnet run --project src/SecureSchoolForms.AuditService
-   dotnet run --project src/SecureSchoolForms.NotificationService
-   dotnet run --project src/SecureSchoolForms.AuthService
-   dotnet run --project src/SecureSchoolForms.DocumentService
-   ```
-2. When the frontend is opened, the gateway indicator will switch to **`API Gateway Connected`** and sync data with the backend microservices.
+Then open `http://localhost:5173`.
 
----
+### Full Backend + Frontend Run
 
-## 🚀 Day 6: Enterprise Messaging (MassTransit) & Cloud Storage Abstraction
+Start each service or use Docker Compose.
 
-### Dual-Transport Message Bus
-
-The message bus is now **provider-aware** and configurable via `appsettings.json`:
-
-```json
-"MessageBusSettings": {
-  "Provider": "JsonFile"
-}
-```
-
-| Provider | Behaviour |
-| :--- | :--- |
-| `"JsonFile"` **(default)** | Zero-dependency local event bus using `.events/` folder + `FileSystemWatcher`. **No Docker required.** |
-| `"RabbitMQ"` | Full enterprise MassTransit bus connecting to a live RabbitMQ broker. Background workers are replaced by native `IConsumer<T>` classes. |
-
-#### Running with RabbitMQ (Optional)
-
-To enable the full enterprise MassTransit transport, spin up a RabbitMQ broker locally with Docker:
+#### Run with .NET
 
 ```bash
-docker run -d --name rabbitmq \
-  -p 5672:5672 \
-  -p 15672:15672 \
-  rabbitmq:3-management
+dotnet run --project src/SecureSchoolForms.ApiGateway
+dotnet run --project src/SecureSchoolForms.FormService
+dotnet run --project src/SecureSchoolForms.WorkflowEngine
+dotnet run --project src/SecureSchoolForms.AuditService
+dotnet run --project src/SecureSchoolForms.NotificationService
+dotnet run --project src/SecureSchoolForms.AuthService
+dotnet run --project src/SecureSchoolForms.DocumentService
 ```
 
-Then set `"Provider": "RabbitMQ"` in each service's `appsettings.json`. The RabbitMQ Management UI is available at `http://localhost:15672` (user: `guest` / pass: `guest`).
+#### Run with Docker Compose
 
-### IStorageProvider — Cloud Document Storage Abstraction
+```bash
+docker compose build
+docker compose up -d
+docker compose ps
+```
 
-`DocumentService` now uses a **swappable `IStorageProvider` interface** for all file operations:
+Access:
+- Dashboard: `http://localhost:5173`
+- API Gateway: `http://localhost:5000`
 
-| Implementation | When Used |
-| :--- | :--- |
-| `LocalStorageProvider` | Default — stores files in `.data/documents/` |
-| `AzureBlobStorageProvider` *(future)* | Swap in for production Azure deployments |
+## API Discovery
 
-Every upload and download logs a **mock Azure Key Vault interaction** simulating envelope encryption key resolution at `https://shield-keyvault.vault.azure.net/keys/envelope-key`.
+Every backend service now exposes Swagger documentation in development mode:
+- `http://localhost:5001/swagger`
+- `http://localhost:5002/swagger`
+- `http://localhost:5003/swagger`
+- `http://localhost:5004/swagger`
+- `http://localhost:5005/swagger`
+- `http://localhost:5006/swagger`
 
-## 🚀 Day 7: Containerization & Multi-Container Orchestration (Docker & Compose)
+## Status Endpoints
+Each service also provides:
+- `GET /health`
+- `GET /status`
 
-The entire decentralized microservice architecture can now be spun up as a containerized stack in a single command. 
+Example:
 
-### Key Containerization Features:
-1. **Multi-Stage Dockerfiles**: Created optimized Dockerfiles for all 7 microservices (`.NET 8`) using layered caching for package restores, and a Node-to-Nginx multi-stage build for the React frontend.
-2. **YARP Gateway Service Resolution**: The gateway dynamically resolves routing endpoints using internal Docker Compose DNS names via environment overrides (`ReverseProxy__Clusters__*__Destinations__*__Address`), preserving local configuration portability.
-3. **Shared Container Volumes**:
-   - `school-forms-data` is shared among data-holding services to keep the SQLite database (`school_forms.db`) and uploaded files in sync.
-   - `school-forms-events` enables full multi-container event propagation when running in `JsonFile` local event bus mode.
-4. **RabbitMQ Coordination**: Integrates a `rabbitmq:3-management` broker with container health checks, ensuring the microservices wait to start until the broker is ready to accept connections.
+```bash
+curl http://localhost:5002/status
+```
 
-### Running with Docker Compose
+## Day 6–9 Highlights
 
-1. **Build the entire stack**:
-   ```bash
-   docker compose build
-   ```
-2. **Start all services (Frontend, Gateway, RabbitMQ, and 6 microservices)**:
-   ```bash
-   docker compose up -d
-   ```
-3. **Verify running containers**:
-   ```bash
-   docker compose ps
-   ```
-4. **Access the applications**:
-   - **Interactive UI Portal**: `http://localhost:5173`
-   - **YARP API Gateway**: `http://localhost:5000`
-   - **RabbitMQ Management Dashboard**: `http://localhost:15672` (guest / guest)
+### Day 6: Enterprise Messaging
+- Added provider-aware message transport with `JsonFile` and `RabbitMQ` modes.
+- Built a pluggable `IStorageProvider` abstraction for local or cloud document storage.
 
----
-## 🚀 Day 8: Observability, Secure File Delivery, and Polished Deployment
+### Day 7: Containerization
+- Added Dockerfiles for all services and the frontend.
+- Created a Docker Compose stack with RabbitMQ and Azurite support.
 
-Day 8 focuses on turning the stack into a production-ready developer experience with health checks, better secure file handling, and clearer build/run guidance.
+### Day 8: Observability & Security Polish
+- Added `/health` endpoints to every service.
+- Improved secure document download metadata.
+- Expanded developer onboarding instructions.
 
-### Day 8 Refinements:
-- Added **consistent `/health` endpoints** to the API Gateway and every backend microservice, enabling container orchestration and monitoring.
-- Improved **document download UX** by preserving the original uploaded filename and resolving the correct MIME type on download.
-- Kept Azure emulation intact with **Azurite-backed Azure Blob Storage** and a resilient **mock Key Vault fallback** for local developer scenarios.
-- Clarified **build and run instructions** for both local dev and Docker Compose deployments.
+### Day 9: API Discovery & Developer Onboarding
+- Added Swagger/OpenAPI documentation to all backend services.
+- Added `/status` endpoints to surface service identity and health.
+- Added an architecture diagram under `docs/architecture.svg`.
+- Updated README structure for faster onboarding.
 
-### Build & Run (Day 8)
-1. **Install frontend dependencies**:
-   ```bash
-   cd frontend
-   npm install
-   ```
-2. **Build the frontend**:
-   ```bash
-   npm run build
-   ```
-3. **Run the full containerized stack**:
-   ```bash
-   docker compose build
-   docker compose up -d
-   ```
-4. **Verify service health**:
-   ```bash
-   curl http://localhost:5000/health
-   curl http://localhost:5001/health
-   curl http://localhost:5002/health
-   ```
-
----
-## 📁 Project Structure
+## Project Structure
 
 ```
-├── SecureSchoolForms.sln         # Root Visual Studio solution file
+├── SecureSchoolForms.sln
+├── docs/
+│   └── architecture.svg
 ├── src/
-│   ├── SecureSchoolForms.Core/     # Shared domain entities, interfaces, and JSON database/event bus
-│   ├── SecureSchoolForms.ApiGateway/ # YARP Reverse Proxy config
-│   ├── SecureSchoolForms.FormService/ # Form submission and templates
-│   ├── SecureSchoolForms.WorkflowEngine/ # Workflow routing and progression
-│   ├── SecureSchoolForms.AuditService/ # Immutable log recorder
-│   ├── SecureSchoolForms.NotificationService/ # SMS / Email simulator
-│   ├── SecureSchoolForms.AuthService/ # User and role authentication
-│   └── SecureSchoolForms.DocumentService/ # Secure file upload and download
+│   ├── SecureSchoolForms.Core/
+│   ├── SecureSchoolForms.ApiGateway/
+│   ├── SecureSchoolForms.FormService/
+│   ├── SecureSchoolForms.WorkflowEngine/
+│   ├── SecureSchoolForms.AuditService/
+│   ├── SecureSchoolForms.NotificationService/
+│   ├── SecureSchoolForms.AuthService/
+│   └── SecureSchoolForms.DocumentService/
 └── frontend/
     ├── src/
-    │   ├── App.tsx                 # Core UI view & simulation engine
-    │   ├── App.css                 # Glassmorphic responsive styling
-    │   └── main.tsx                # Client entrypoint
-```
+    │   ├── App.tsx
+    │   ├── App.css
+    │   └── main.tsx

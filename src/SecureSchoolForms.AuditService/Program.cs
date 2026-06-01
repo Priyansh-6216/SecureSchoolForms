@@ -30,6 +30,8 @@ else
     builder.Services.AddHostedService<AuditBackgroundWorker>();
 }
 
+builder.Services.AddSwaggerDocumentation("SecureSchoolForms Audit Service API");
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -53,7 +55,9 @@ using (var scope = app.Services.CreateScope())
 
 app.UseCors("AllowAll");
 app.UseAuthorization();
+app.UseSwaggerDocumentation("SecureSchoolForms Audit Service API");
 app.MapControllers();
 app.MapGet("/health", () => Results.Ok(new { status = "Healthy" }));
+app.MapGet("/status", () => Results.Ok(new { service = "AuditService", version = "1.0", status = "Healthy" }));
 
 app.Run();

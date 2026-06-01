@@ -8,6 +8,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllers();
 
+builder.Services.AddSwaggerDocumentation("SecureSchoolForms Auth Service API");
+
 // Register concrete implementations
 builder.Services.AddSingleton<IMessageBus, JsonFileMessageBus>();
 
@@ -26,8 +28,10 @@ builder.WebHost.UseUrls("http://*:5005");
 var app = builder.Build();
 
 app.UseCors("AllowAll");
+app.UseSwaggerDocumentation("Auth Service");
 app.UseAuthorization();
 app.MapControllers();
 app.MapGet("/health", () => Results.Ok(new { status = "Healthy" }));
+app.MapGet("/status", () => Results.Ok(new { service = "AuthService", version = "1.0", status = "Healthy" }));
 
 app.Run();

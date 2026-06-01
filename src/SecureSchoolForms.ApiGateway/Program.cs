@@ -26,5 +26,6 @@ var app = builder.Build();
 app.UseCors("AllowFrontend");
 app.MapReverseProxy();
 app.MapGet("/health", () => Results.Ok(new { status = "Healthy" }));
+app.MapGet("/status", () => Results.Ok(new { service = "ApiGateway", version = "1.0", status = "Healthy" }));
 
 app.Run();

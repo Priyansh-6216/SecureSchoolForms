@@ -17,6 +17,8 @@ builder.Services.AddScoped<IFormRepository, EfFormRepository>();
 // FormService only publishes — no consumers registered here.
 builder.Services.AddCustomMessaging(builder.Configuration);
 
+builder.Services.AddSwaggerDocumentation("SecureSchoolForms Form Service API");
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -70,8 +72,10 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.UseCors("AllowAll");
+app.UseSwaggerDocumentation("Form Service");
 app.UseAuthorization();
 app.MapControllers();
 app.MapGet("/health", () => Results.Ok(new { status = "Healthy" }));
+app.MapGet("/status", () => Results.Ok(new { service = "FormService", version = "1.0", status = "Healthy" }));
 
 app.Run();

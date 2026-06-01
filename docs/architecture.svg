@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1100" height="720" viewBox="0 0 1100 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title>SecureSchoolForms architecture diagram</title>
+  <desc>High level architecture showing frontend, YARP API gateway, backend microservices, and the local event bus.</desc>
+  <style>
+    .box { fill: #1f2937; stroke: #ffffff; stroke-width: 2; rx: 16; ry: 16; }
+    .text { fill: #f9fafb; font-family: Inter, Arial, sans-serif; font-size: 16px; }
+    .title { fill: #111827; font-size: 24px; font-weight: 700; }
+    .subtitle { fill: #374151; font-size: 14px; }
+    .arrow { fill: none; stroke: #4f46e5; stroke-width: 3; marker-end: url(#arrowhead); }
+  </style>
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#4f46e5" />
+    </marker>
+  </defs>
+
+  <rect x="30" y="30" width="1040" height="100" fill="#eef2ff" rx="18" ry="18" />
+  <text x="60" y="64" class="title">SecureSchoolForms Architecture</text>
+  <text x="60" y="92" class="subtitle">Frontend → API Gateway → Backend microservices → Event bus + local persistence</text>
+
+  <rect class="box" x="70" y="160" width="260" height="120" />
+  <text class="text" x="95" y="200">React + Vite UI</text>
+  <text class="text" x="95" y="225">Port 5173</text>
+
+  <rect class="box" x="420" y="160" width="260" height="120" />
+  <text class="text" x="450" y="195">YARP API Gateway</text>
+  <text class="text" x="450" y="220">Port 5000</text>
+
+  <rect class="box" x="720" y="90" width="340" height="210" />
+  <text class="text" x="760" y="125">Back-end Microservices</text>
+  <text class="text" x="760" y="150">Form, Workflow, Audit,</text>
+  <text class="text" x="760" y="175">Notification, Auth, Docs</text>
+
+  <rect class="box" x="120" y="340" width="900" height="320" />
+  <text class="text" x="140" y="380">Local Event Bus / Message Bus</text>
+  <text class="text" x="140" y="405">`.events/` + FileSystemWatcher</text>
+  <text class="text" x="140" y="440">Local persistence: `.data/`</text>
+  <text class="text" x="140" y="465">Document storage + audit logs + workflow state</text>
+
+  <path class="arrow" d="M330 220 L420 220" />
+  <path class="arrow" d="M680 220 L720 220" />
+  <path class="arrow" d="M600 280 L600 340" />
+  <path class="arrow" d="M250 320 L250 340" />
+  <path class="arrow" d="M850 300 L850 340" />
+
+  <text class="text" x="250" y="280">HTTP</text>
+  <text class="text" x="640" y="290">HTTP</text>
+  <text class="text" x="510" y="365">events</text>
+
+  <rect class="box" x="720" y="310" width="180" height="120" />
+  <text class="text" x="744" y="340">Workflow</text>
+  <text class="text" x="744" y="365">Engine</text>
+  <text class="text" x="744" y="390">Port 5002</text>
+
+  <rect class="box" x="920" y="310" width="180" height="120" />
+  <text class="text" x="944" y="340">Audit</text>
+  <text class="text" x="944" y="365">Service</text>
+  <text class="text" x="944" y="390">Port 5003</text>
+
+  <path class="arrow" d="M780 430 L780 540" />
+  <path class="arrow" d="M980 430 L980 540" />
+  <path class="arrow" d="M780 450 L920 450" />
+
+  <text class="text" x="780" y="520">publishes to / consumes from</text>
+</svg>

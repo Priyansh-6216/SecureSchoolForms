@@ -5,6 +5,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 
+builder.Services.AddSwaggerDocumentation("SecureSchoolForms Document Service API");
+
 // ── Key Vault Provider ────────────────────────────────────────────────────────
 builder.Services.AddSingleton<IKeyVaultProvider, AzureKeyVaultProvider>();
 
@@ -41,8 +43,10 @@ builder.WebHost.UseUrls("http://*:5006");
 var app = builder.Build();
 
 app.UseCors("AllowAll");
+app.UseSwaggerDocumentation("Document Service");
 app.UseAuthorization();
 app.MapControllers();
 app.MapGet("/health", () => Results.Ok(new { status = "Healthy" }));
+app.MapGet("/status", () => Results.Ok(new { service = "DocumentService", version = "1.0", status = "Healthy" }));
 
 app.Run();

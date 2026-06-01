@@ -27,6 +27,8 @@ else
     builder.Services.AddHostedService<NotificationBackgroundWorker>();
 }
 
+builder.Services.AddSwaggerDocumentation("SecureSchoolForms Notification Service API");
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -42,8 +44,10 @@ builder.WebHost.UseUrls("http://*:5004");
 var app = builder.Build();
 
 app.UseCors("AllowAll");
+app.UseSwaggerDocumentation("Notification Service");
 app.UseAuthorization();
 app.MapControllers();
 app.MapGet("/health", () => Results.Ok(new { status = "Healthy" }));
+app.MapGet("/status", () => Results.Ok(new { service = "NotificationService", version = "1.0", status = "Healthy" }));
 
 app.Run();
