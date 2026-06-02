@@ -4,6 +4,7 @@ using SecureSchoolForms.Core.Interfaces;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.AddHttpClient();
 
 builder.Services.AddSwaggerDocumentation("SecureSchoolForms Document Service API");
 

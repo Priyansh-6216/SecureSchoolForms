@@ -67,6 +67,21 @@ public class AuditBackgroundWorker : BackgroundService
             await AppendAuditLogAsync(auditLog);
         });
 
+        // 4. Subscribe to document.downloaded
+        JsonFileMessageBus.Subscribe<DocumentDownloadedEvent>("document.downloaded", async (downloadEvent) =>
+        {
+            var auditLog = new AuditLog
+            {
+                LogId = Guid.NewGuid(),
+                ActionType = "DocumentDownloaded",
+                UserId = downloadEvent.DownloadedBy,
+                Timestamp = downloadEvent.DownloadedAt,
+                Metadata = JsonSerializer.Serialize(downloadEvent)
+            };
+
+            await AppendAuditLogAsync(auditLog);
+        });
+
         return Task.CompletedTask;
     }
 

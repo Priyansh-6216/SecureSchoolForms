@@ -21,6 +21,7 @@ if (provider.Equals("RabbitMQ", StringComparison.OrdinalIgnoreCase))
         x.AddConsumer<FormSubmittedAuditConsumer>();
         x.AddConsumer<WorkflowStepCompletedAuditConsumer>();
         x.AddConsumer<WorkflowStepRejectedAuditConsumer>();
+        x.AddConsumer<DocumentDownloadedAuditConsumer>();
     });
 }
 else

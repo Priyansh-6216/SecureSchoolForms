@@ -100,3 +100,33 @@ public class WorkflowStepRejectedAuditConsumer : IConsumer<WorkflowStepRejectedE
         Console.WriteLine($"[AuditService/Consumer] Logged WorkflowRejected by user {evt.RejectedBy}");
     }
 }
+
+/// <summary>
+/// Handles <see cref="DocumentDownloadedEvent"/> messages in MassTransit mode.
+/// </summary>
+public class DocumentDownloadedAuditConsumer : IConsumer<DocumentDownloadedEvent>
+{
+    private readonly SchoolFormsDbContext _db;
+
+    public DocumentDownloadedAuditConsumer(SchoolFormsDbContext db)
+    {
+        _db = db;
+    }
+
+    public async Task Consume(ConsumeContext<DocumentDownloadedEvent> context)
+    {
+        var evt = context.Message;
+        var log = new AuditLog
+        {
+            LogId = Guid.NewGuid(),
+            ActionType = "DocumentDownloaded",
+            UserId = evt.DownloadedBy,
+            Timestamp = evt.DownloadedAt,
+            Metadata = JsonSerializer.Serialize(evt)
+        };
+
+        await _db.AuditLogs.AddAsync(log);
+        await _db.SaveChangesAsync();
+        Console.WriteLine($"[AuditService/Consumer] Logged DocumentDownloaded for file {evt.FileName} by user {evt.DownloadedBy}");
+    }
+}

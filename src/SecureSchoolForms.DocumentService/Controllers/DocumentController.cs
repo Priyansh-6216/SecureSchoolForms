@@ -1,7 +1,16 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Json;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.StaticFiles;
 using SecureSchoolForms.Core.Entities;
 using SecureSchoolForms.Core.Interfaces;
+using SecureSchoolForms.Core.Events;
 
 namespace SecureSchoolForms.DocumentService.Controllers;
 
@@ -11,11 +20,19 @@ public class DocumentController : ControllerBase
 {
     private readonly IStorageProvider _storageProvider;
     private readonly IKeyVaultProvider _keyVaultProvider;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IMessageBus _messageBus;
 
-    public DocumentController(IStorageProvider storageProvider, IKeyVaultProvider keyVaultProvider)
+    public DocumentController(
+        IStorageProvider storageProvider, 
+        IKeyVaultProvider keyVaultProvider,
+        IHttpClientFactory httpClientFactory,
+        IMessageBus messageBus)
     {
         _storageProvider = storageProvider;
         _keyVaultProvider = keyVaultProvider;
+        _httpClientFactory = httpClientFactory;
+        _messageBus = messageBus;
     }
 
     [HttpPost("upload")]
@@ -68,10 +85,41 @@ public class DocumentController : ControllerBase
     }
 
     [HttpGet("download/{id}")]
-    public async Task<IActionResult> DownloadDocument(Guid id)
+    public async Task<IActionResult> DownloadDocument(Guid id, [FromQuery] Guid userId)
     {
         try
         {
+            // ── Zero-Trust RBAC Check: Contact AuthService ────────────────────
+            var client = _httpClientFactory.CreateClient();
+            List<UserDto>? users = null;
+            try
+            {
+                users = await client.GetFromJsonAsync<List<UserDto>>("http://localhost:5005/api/auth/users");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DocumentService] Error communicating with AuthService: {ex.Message}");
+                return StatusCode(StatusCodes.Status503ServiceUnavailable, 
+                    new { Message = "AuthService unavailable. Zero-Trust policy requires active identity verification." });
+            }
+
+            var user = users?.FirstOrDefault(u => u.UserId == userId);
+            if (user == null)
+            {
+                return Unauthorized(new { Message = "User identity verification failed. Access Denied." });
+            }
+
+            if (!user.Role.Equals("Admin", StringComparison.OrdinalIgnoreCase) && 
+                !user.Role.Equals("District", StringComparison.OrdinalIgnoreCase))
+            {
+                Console.WriteLine($"[DocumentService] Security policy block: User {user.Name} (Role: {user.Role}) blocked from downloading document {id}.");
+                return StatusCode(StatusCodes.Status403Forbidden, new
+                {
+                    Message = "Access Denied",
+                    Details = $"Zero-Trust security policies restrict document retrieval to Admin or District roles. Your role is: {user.Role}."
+                });
+            }
+
             // ── Key Vault: retrieve envelope key for decryption ────────────────
             var keyName = $"envelope-key-{id}";
             string resolvedKey;
@@ -91,6 +139,17 @@ public class DocumentController : ControllerBase
             var fileUrl = $"/api/document/download/{id}";
             var download = await _storageProvider.DownloadFileAsync(fileUrl);
 
+            // ── Publish security audit trail event ──────────────────────────────
+            var downloadEvent = new DocumentDownloadedEvent
+            {
+                DocumentId = id,
+                DownloadedBy = userId,
+                FileName = download.FileName,
+                DownloadedAt = DateTime.UtcNow,
+                SecurityKeyRef = keyName
+            };
+            await _messageBus.PublishMessageAsync(downloadEvent, "document.downloaded");
+
             var contentTypeProvider = new FileExtensionContentTypeProvider();
             var mimeType = contentTypeProvider.TryGetContentType(download.FileName, out var detectedType)
                 ? detectedType
@@ -109,3 +168,5 @@ public class DocumentController : ControllerBase
         }
     }
 }
+
+public record UserDto(Guid UserId, string Name, string Email, string Role);

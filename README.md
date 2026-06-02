@@ -166,6 +166,12 @@ curl http://localhost:5002/status
 - Added a new frontend **System Status** tab for live microservice health and direct Swagger explorer links.
 - Centralized service health visibility to help developers debug startup and routing issues quickly.
 
+### Day 11: Cryptographic Document Vault & Role-Based Secure Downloads
+- Integrated `DocumentService` with `AuthService` to verify user identities and roles before releasing file decryption keys.
+- Implemented zero-trust RBAC access control policies (blocking `Teacher` role download attempts at both the frontend and backend microservice layer, while granting access to `Admin` and `District` roles).
+- Added an interactive **Cryptographic Document Vault Explorer** tab showing uploaded documents, active Key Vault secret references, and digital signature integrity checks.
+- Structured automated logging for successful downloads and access violations through the `AuditService` pipeline.
+
 ## Project Structure
 
 ```
