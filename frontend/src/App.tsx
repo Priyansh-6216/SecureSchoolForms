@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import './App.css';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000/api';
+const GATEWAY_BASE = API_BASE.replace(/\/api$/, '') || 'http://localhost:5000';
 
 interface FormTemplate {
   formId: string;
@@ -46,6 +47,16 @@ interface SimulatedNotification {
   timestamp: string;
 }
 
+interface ServiceStatus {
+  service: string;
+  version: string;
+  status: string;
+  online: boolean;
+  endpoint: string;
+  swagger?: string;
+  error?: string;
+}
+
 // In-Memory fallback data in case backend is offline
 const MOCK_FORMS: FormTemplate[] = [
   { formId: 'd3b07384-d113-49be-a5d6-5c1b528bfe01', type: 'Enrollment Form', status: 'Published' },
@@ -55,7 +66,7 @@ const MOCK_FORMS: FormTemplate[] = [
 
 function App() {
   // Navigation & tabs
-  const [activeTab, setActiveTab] = useState<'submit' | 'tracker' | 'approvals' | 'audits'>('submit');
+  const [activeTab, setActiveTab] = useState<'submit' | 'tracker' | 'approvals' | 'audits' | 'status'>('submit');
   
   // App states
   const [forms, setForms] = useState<FormTemplate[]>(MOCK_FORMS);
@@ -63,6 +74,7 @@ function App() {
   const [workflows, setWorkflows] = useState<WorkflowInstance[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [notifications, setNotifications] = useState<SimulatedNotification[]>([]);
+  const [serviceStatuses, setServiceStatuses] = useState<ServiceStatus[]>([]);
   
   // Form submission state
   const [selectedForm, setSelectedForm] = useState<FormTemplate | null>(null);
@@ -98,6 +110,13 @@ function App() {
   const loadSystemData = async () => {
     setLoading(true);
     try {
+      // 0. Fetch gateway aggregated status of all microservices
+      const statusRes = await fetch(`${GATEWAY_BASE}/status`);
+      if (statusRes.ok) {
+        const statusData = await statusRes.json();
+        setServiceStatuses(statusData.dependencies ?? []);
+      }
+
       // 1. Fetch available forms
       const formsRes = await fetch(`${API_BASE}/form`);
       if (!formsRes.ok) throw new Error('API Gateway offline');
@@ -135,6 +154,15 @@ function App() {
     } catch (err) {
       console.warn('Backend is offline, initiating local in-memory simulation mode.');
       setIsBackendOnline(false);
+      setServiceStatuses([
+        { service: 'ApiGateway', version: '1.0', status: 'Offline', online: false, endpoint: `${GATEWAY_BASE}/status` },
+        { service: 'FormService', version: 'Offline', status: 'Offline', online: false, endpoint: 'http://localhost:5001/status', swagger: 'http://localhost:5001/swagger' },
+        { service: 'WorkflowEngine', version: 'Offline', status: 'Offline', online: false, endpoint: 'http://localhost:5002/status', swagger: 'http://localhost:5002/swagger' },
+        { service: 'AuditService', version: 'Offline', status: 'Offline', online: false, endpoint: 'http://localhost:5003/status', swagger: 'http://localhost:5003/swagger' },
+        { service: 'NotificationService', version: 'Offline', status: 'Offline', online: false, endpoint: 'http://localhost:5004/status', swagger: 'http://localhost:5004/swagger' },
+        { service: 'AuthService', version: 'Offline', status: 'Offline', online: false, endpoint: 'http://localhost:5005/status', swagger: 'http://localhost:5005/swagger' },
+        { service: 'DocumentService', version: 'Offline', status: 'Offline', online: false, endpoint: 'http://localhost:5006/status', swagger: 'http://localhost:5006/swagger' }
+      ]);
       setSystemMessage({
         text: 'Backend unreachable. Running in local-first interactive simulation mode.',
         type: 'info'
@@ -641,6 +669,17 @@ function App() {
           </svg>
           Real-time Logs
         </button>
+        <button 
+          className={activeTab === 'status' ? 'active' : ''} 
+          onClick={() => setActiveTab('status')}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="nav-icon">
+            <path d="M3 12h18"></path>
+            <path d="M9 5l3 7-3 7"></path>
+            <path d="M15 5l-3 7 3 7"></path>
+          </svg>
+          System Status
+        </button>
       </nav>
 
       {/* Dynamic Content Body */}
@@ -984,7 +1023,48 @@ function App() {
           </section>
         )}
 
-        {/* TAB 4: REAL-TIME AUDIT LOGS & NOTIFICATIONS */}
+        {/* TAB 4: SYSTEM STATUS & API DISCOVERY */}
+        {activeTab === 'status' && (
+          <section className="tab-pane">
+            <div className="intro-text">
+              <h2>System Status & API Discovery</h2>
+              <p>View current microservice health and open individual Swagger documentation directly from the gateway.</p>
+            </div>
+
+            <div className="status-grid">
+              {serviceStatuses.length === 0 ? (
+                <div className="empty-state glass-pane">
+                  <p>Waiting for gateway health status…</p>
+                </div>
+              ) : (
+                serviceStatuses.map(status => (
+                  <div key={status.service} className={`status-card glass-pane ${status.online ? 'online' : 'offline'}`}>
+                    <div className="status-header">
+                      <div>
+                        <h3>{status.service}</h3>
+                        <p className="status-meta">Version: {status.version}</p>
+                      </div>
+                      <span className={`status-pill ${status.online ? 'connected' : 'disconnected'}`}>
+                        {status.online ? 'Online' : 'Offline'}
+                      </span>
+                    </div>
+
+                    <div className="status-body">
+                      <p><strong>Health:</strong> {status.status}</p>
+                      <p><strong>Endpoint:</strong> <a href={status.endpoint} target="_blank" rel="noreferrer">{status.endpoint}</a></p>
+                      {status.swagger && (
+                        <p><strong>Swagger:</strong> <a href={status.swagger} target="_blank" rel="noreferrer">{status.swagger}</a></p>
+                      )}
+                      {status.error && <p className="status-error">Error: {status.error}</p>}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* TAB 5: REAL-TIME AUDIT LOGS & NOTIFICATIONS */}
         {activeTab === 'audits' && (
           <section className="tab-pane">
             <div className="intro-text">

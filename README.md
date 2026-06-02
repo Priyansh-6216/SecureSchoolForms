@@ -126,6 +126,9 @@ Every backend service now exposes Swagger documentation in development mode:
 - `http://localhost:5005/swagger`
 - `http://localhost:5006/swagger`
 
+A new gateway-level status aggregator is also available at:
+- `http://localhost:5000/status`
+
 ## Status Endpoints
 Each service also provides:
 - `GET /health`
@@ -157,6 +160,11 @@ curl http://localhost:5002/status
 - Added `/status` endpoints to surface service identity and health.
 - Added an architecture diagram under `docs/architecture.svg`.
 - Updated README structure for faster onboarding.
+
+### Day 10: Service Health Dashboard & Gateway Aggregation
+- Added API Gateway status aggregation at `http://localhost:5000/status`.
+- Added a new frontend **System Status** tab for live microservice health and direct Swagger explorer links.
+- Centralized service health visibility to help developers debug startup and routing issues quickly.
 
 ## Project Structure
 
