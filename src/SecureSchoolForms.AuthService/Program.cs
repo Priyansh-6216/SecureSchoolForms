@@ -11,7 +11,7 @@ builder.Services.AddControllers();
 builder.Services.AddSwaggerDocumentation("SecureSchoolForms Auth Service API");
 
 // Register concrete implementations
-builder.Services.AddSingleton<IMessageBus, JsonFileMessageBus>();
+builder.Services.AddCustomMessaging(builder.Configuration);
 
 builder.Services.AddCors(options =>
 {

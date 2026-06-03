@@ -47,6 +47,7 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - MessageBusSettings__Provider=RabbitMQ
       - MessageBusSettings__RabbitMQ__Host=rabbitmq
+      - MessageBusSettings__AzureServiceBus__ConnectionString=Endpoint=sb://your-namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=your-key
     volumes:
       - school-forms-data:/app/.data
       - school-forms-events:/app/.events
@@ -66,6 +67,7 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - MessageBusSettings__Provider=RabbitMQ
       - MessageBusSettings__RabbitMQ__Host=rabbitmq
+      - MessageBusSettings__AzureServiceBus__ConnectionString=Endpoint=sb://your-namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=your-key
     volumes:
       - school-forms-data:/app/.data
       - school-forms-events:/app/.events
@@ -85,6 +87,7 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - MessageBusSettings__Provider=RabbitMQ
       - MessageBusSettings__RabbitMQ__Host=rabbitmq
+      - MessageBusSettings__AzureServiceBus__ConnectionString=Endpoint=sb://your-namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=your-key
     volumes:
       - school-forms-data:/app/.data
       - school-forms-events:/app/.events
@@ -104,6 +107,7 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - MessageBusSettings__Provider=RabbitMQ
       - MessageBusSettings__RabbitMQ__Host=rabbitmq
+      - MessageBusSettings__AzureServiceBus__ConnectionString=Endpoint=sb://your-namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=your-key
     volumes:
       - school-forms-events:/app/.events
     depends_on:
@@ -120,6 +124,9 @@ services:
       - "5005:5005"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+      - MessageBusSettings__Provider=RabbitMQ
+      - MessageBusSettings__RabbitMQ__Host=rabbitmq
+      - MessageBusSettings__AzureServiceBus__ConnectionString=Endpoint=sb://your-namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=your-key
     volumes:
       - school-forms-events:/app/.events
 
@@ -135,6 +142,7 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - MessageBusSettings__Provider=RabbitMQ
       - MessageBusSettings__RabbitMQ__Host=rabbitmq
+      - MessageBusSettings__AzureServiceBus__ConnectionString=Endpoint=sb://your-namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=your-key
       - StorageSettings__Provider=AzureBlob
       - StorageSettings__AzureBlob__ConnectionString=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM0gYhgCQJAFqgVYJCSD5Ux31U4Eb5p1ia1gCgkrtS8hx54eC78n9k4Q5J1OFaY6aUTUV16%2F%2F%2Fw%3D%3D;BlobEndpoint=http://azurite:10000/devstoreaccount1;
     volumes:

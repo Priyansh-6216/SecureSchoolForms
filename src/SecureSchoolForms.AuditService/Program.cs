@@ -14,7 +14,7 @@ builder.Services.AddDbContext<SchoolFormsDbContext>();
 // RabbitMQ mode → MassTransit with all three audit consumers.
 var provider = builder.Configuration["MessageBusSettings:Provider"] ?? "JsonFile";
 
-if (provider.Equals("RabbitMQ", StringComparison.OrdinalIgnoreCase))
+if (provider.Equals("RabbitMQ", StringComparison.OrdinalIgnoreCase) || provider.Equals("AzureServiceBus", StringComparison.OrdinalIgnoreCase))
 {
     builder.Services.AddCustomMessaging(builder.Configuration, x =>
     {

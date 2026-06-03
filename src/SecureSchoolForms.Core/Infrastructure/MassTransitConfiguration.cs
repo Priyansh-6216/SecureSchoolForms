@@ -58,6 +58,29 @@ public static class MassTransitConfiguration
             // Bind IMessageBus → MassTransitMessageBus for all publishers
             services.AddScoped<IMessageBus, MassTransitMessageBus>();
         }
+        else if (provider.Equals("AzureServiceBus", StringComparison.OrdinalIgnoreCase))
+        {
+            // ── Enterprise Cloud mode: MassTransit → Azure Service Bus ──────────
+            var connectionString = configuration["MessageBusSettings:AzureServiceBus:ConnectionString"];
+            if (string.IsNullOrEmpty(connectionString))
+            {
+                throw new InvalidOperationException("Azure Service Bus connection string is required when MessageBusSettings:Provider is 'AzureServiceBus'.");
+            }
+
+            services.AddMassTransit(x =>
+            {
+                configureConsumers?.Invoke(x);
+
+                x.UsingAzureServiceBus((ctx, cfg) =>
+                {
+                    cfg.Host(connectionString);
+                    cfg.ConfigureEndpoints(ctx);
+                });
+            });
+
+            // Bind IMessageBus → MassTransitMessageBus for all publishers
+            services.AddScoped<IMessageBus, MassTransitMessageBus>();
+        }
         else
         {
             // ── Zero-dependency mode: JsonFile-based bus ──────────────────────────

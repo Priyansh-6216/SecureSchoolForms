@@ -10,7 +10,7 @@ SecureSchoolForms is an event-driven administrative portal that helps school dis
 - [Services & Ports](#services--ports)
 - [Quick Start](#quick-start)
 - [API Discovery](#api-discovery)
-- [Day 6–9 Highlights](#day-6-9-highlights)
+- [Day 6–12 Highlights](#day-6-12-highlights)
 - [Project Structure](#project-structure)
 
 ---
@@ -140,7 +140,7 @@ Example:
 curl http://localhost:5002/status
 ```
 
-## Day 6–9 Highlights
+## Day 6–12 Highlights
 
 ### Day 6: Enterprise Messaging
 - Added provider-aware message transport with `JsonFile` and `RabbitMQ` modes.
@@ -171,6 +171,11 @@ curl http://localhost:5002/status
 - Implemented zero-trust RBAC access control policies (blocking `Teacher` role download attempts at both the frontend and backend microservice layer, while granting access to `Admin` and `District` roles).
 - Added an interactive **Cryptographic Document Vault Explorer** tab showing uploaded documents, active Key Vault secret references, and digital signature integrity checks.
 - Structured automated logging for successful downloads and access violations through the `AuditService` pipeline.
+
+### Day 12: Azure Service Bus Integration
+- Configured a cloud-native messaging transport using **Azure Service Bus** alongside `RabbitMQ` and `JsonFile` transports via MassTransit.
+- Created flexible, unified consumer and publisher configurations in `SecureSchoolForms.Core` enabling switchable dual-transport bindings.
+- Configured default connection string keys in `appsettings.json` configurations and container environment variables.
 
 ## Project Structure
 

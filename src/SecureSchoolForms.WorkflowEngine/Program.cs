@@ -16,7 +16,7 @@ builder.Services.AddScoped<IWorkflowRepository, EfWorkflowRepository>();
 // RabbitMQ mode → registers MassTransit with FormSubmittedConsumer.
 var provider = builder.Configuration["MessageBusSettings:Provider"] ?? "JsonFile";
 
-if (provider.Equals("RabbitMQ", StringComparison.OrdinalIgnoreCase))
+if (provider.Equals("RabbitMQ", StringComparison.OrdinalIgnoreCase) || provider.Equals("AzureServiceBus", StringComparison.OrdinalIgnoreCase))
 {
     builder.Services.AddCustomMessaging(builder.Configuration, x =>
     {
