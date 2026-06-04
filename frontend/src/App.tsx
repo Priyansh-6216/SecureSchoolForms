@@ -1,5 +1,13 @@
 import { useState, useEffect } from 'react';
 import './App.css';
+import { Toast } from './components/Toast';
+import { Layout } from './components/Layout';
+import { Login } from './pages/Login';
+import { SubmitForms } from './pages/SubmitForms';
+import { TrackWorkflows } from './pages/TrackWorkflows';
+import { ApprovalsPortal } from './pages/ApprovalsPortal';
+import { SystemStatus } from './pages/SystemStatus';
+import { RealTimeLogs } from './pages/RealTimeLogs';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000/api';
 const GATEWAY_BASE = API_BASE.replace(/\/api$/, '') || 'http://localhost:5000';
@@ -57,7 +65,22 @@ interface ServiceStatus {
   error?: string;
 }
 
-// In-Memory fallback data in case backend is offline
+interface UploadedDoc {
+  documentId: string;
+  originalFileName: string;
+  fileUrl: string;
+  encryptedKey: string;
+  uploadedAt: string;
+  status: string;
+}
+
+interface UserProfile {
+  userId: string;
+  name: string;
+  email: string;
+  role: 'Teacher' | 'Admin' | 'District';
+}
+
 const MOCK_FORMS: FormTemplate[] = [
   { formId: 'd3b07384-d113-49be-a5d6-5c1b528bfe01', type: 'Enrollment Form', status: 'Published' },
   { formId: 'd3b07384-d113-49be-a5d6-5c1b528bfe02', type: 'Transfer Form', status: 'Published' },
@@ -82,28 +105,11 @@ function App() {
   const [gradeLevel, setGradeLevel] = useState('9th Grade');
   const [additionalDetails, setAdditionalDetails] = useState('');
   const [attachedDocument, setAttachedDocument] = useState<string | null>(null);
-  
-  interface UploadedDoc {
-    documentId: string;
-    originalFileName: string;
-    fileUrl: string;
-    encryptedKey: string;
-    uploadedAt: string;
-    status: string;
-  }
   const [uploadedDocuments, setUploadedDocuments] = useState<UploadedDoc[]>([]);
   const [verifiedDocs, setVerifiedDocs] = useState<Record<string, 'verifying' | 'verified'>>({});
   const [securityBlock, setSecurityBlock] = useState<{ active: boolean; file: string; role: string } | null>(null);
   
   // User profile session interface
-  interface UserProfile {
-    userId: string;
-    name: string;
-    email: string;
-    role: 'Teacher' | 'Admin' | 'District';
-  }
-
-  // Active session and form/login inputs
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [loginEmail, setLoginEmail] = useState('');
   const [loginError, setLoginError] = useState<string | null>(null);
@@ -688,831 +694,97 @@ function App() {
 
   if (!currentUser) {
     return (
-      <div className="portal-container login-mode">
-        {/* Background blobs for premium glassmorphic depth */}
-        <div className="blob-1"></div>
-        <div className="blob-2"></div>
-        
-        {/* Realtime dynamic toast notification alerts */}
-        {systemMessage && (
-          <div className={`toast-message ${systemMessage.type}`}>
-            <div className="toast-content">
-              <span className="toast-icon">
-                {systemMessage.type === 'success' && '✓'}
-                {systemMessage.type === 'error' && '✕'}
-                {systemMessage.type === 'info' && 'ℹ'}
-              </span>
-              <p>{systemMessage.text}</p>
-            </div>
-          </div>
-        )}
-
-        <div className="login-card-container">
-          <div className="login-card glass-pane animate-fade-in">
-            <div className="secure-badge">
-              <svg className="shield-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-              </svg>
-              <span>SHIELD SECURE SIGN-IN</span>
-            </div>
-            <h2>SecureSchoolForms</h2>
-            <p className="login-subtitle">Zero-Trust Administrative Form Processing Dashboard</p>
-            
-            <form onSubmit={handleLogin} className="interactive-form login-form">
-              <div className="form-group">
-                <label>Administrative Email Address</label>
-                <input 
-                  type="email" 
-                  required 
-                  placeholder="e.g. alex.rivers@school.edu" 
-                  value={loginEmail}
-                  onChange={e => setLoginEmail(e.target.value)}
-                />
-              </div>
-              
-              {loginError && <p className="login-error-text">⚠️ {loginError}</p>}
-              
-              <button type="submit" className="login-submit-btn">
-                {loading ? "Authenticating..." : "Secure Sign In"}
-              </button>
-            </form>
-
-            <div className="mock-accounts-helper">
-              <h4>💡 Pre-registered Test Credentials:</h4>
-              <ul>
-                <li onClick={() => setLoginEmail('alex.rivers@school.edu')}>
-                  <strong>Teacher:</strong> <span>alex.rivers@school.edu</span>
-                </li>
-                <li onClick={() => setLoginEmail('eleanor.vance@school.edu')}>
-                  <strong>Principal:</strong> <span>eleanor.vance@school.edu</span>
-                </li>
-                <li onClick={() => setLoginEmail('davis.officer@district.edu')}>
-                  <strong>Superintendent:</strong> <span>davis.officer@district.edu</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
+      <Login 
+        systemMessage={systemMessage}
+        loginEmail={loginEmail}
+        setLoginEmail={setLoginEmail}
+        loginError={loginError}
+        loading={loading}
+        handleLogin={handleLogin}
+      />
     );
   }
 
   return (
-    <div className="portal-container">
-      {/* Background blobs for premium glassmorphic depth */}
-      <div className="blob-1"></div>
-      <div className="blob-2"></div>
-      
-      {/* Header bar */}
-      <header className="portal-header">
-        <div className="logo-section">
-          <div className="secure-badge">
-            <svg className="shield-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-            </svg>
-            <span>SHIELD</span>
-          </div>
-          <h1>SecureSchoolForms</h1>
-        </div>
+    <Layout
+      currentUser={currentUser}
+      onSignOut={() => setCurrentUser(null)}
+      isBackendOnline={isBackendOnline}
+      activeTab={activeTab}
+      setActiveTab={setActiveTab}
+    >
+      <Toast message={systemMessage} />
+      {loading && <div className="loader-overlay"><div className="loader"></div></div>}
 
-        {/* User context switches & network state indicator */}
-        <div className="header-meta">
-          <div className={`network-pill ${isBackendOnline ? 'online' : 'simulated'}`}>
-            <span className="pulse"></span>
-            <span>{isBackendOnline ? 'API GATEWAY CONNECTED' : 'LOCAL SIMULATION ACTIVE'}</span>
-          </div>
-
-          <div className="user-profile">
-            <div className="avatar">
-              {currentUser.name.split(' ').map(n => n[0]).join('')}
-            </div>
-            <div className="user-details">
-              <div className="username">{currentUser.name}</div>
-              <div className="user-role-badge">{currentUser.role}</div>
-            </div>
-            <button className="sign-out-btn" onClick={() => setCurrentUser(null)}>
-              Sign Out
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* Realtime dynamic toast notification alerts */}
-      {systemMessage && (
-        <div className={`toast-message ${systemMessage.type}`}>
-          <div className="toast-content">
-            <span className="toast-icon">
-              {systemMessage.type === 'success' && '✓'}
-              {systemMessage.type === 'error' && '✕'}
-              {systemMessage.type === 'info' && 'ℹ'}
-            </span>
-            <p>{systemMessage.text}</p>
-          </div>
-        </div>
+      {activeTab === 'submit' && (
+        <SubmitForms
+          forms={forms}
+          selectedForm={selectedForm}
+          setSelectedForm={setSelectedForm}
+          studentName={studentName}
+          setStudentName={setStudentName}
+          gradeLevel={gradeLevel}
+          setGradeLevel={setGradeLevel}
+          additionalDetails={additionalDetails}
+          setAdditionalDetails={setAdditionalDetails}
+          attachedDocument={attachedDocument}
+          setAttachedDocument={setAttachedDocument}
+          uploadedDocuments={uploadedDocuments}
+          setUploadedDocuments={setUploadedDocuments}
+          handleFormSubmit={handleFormSubmit}
+          currentUser={currentUser}
+          isBackendOnline={isBackendOnline}
+          setLoading={setLoading}
+          setSystemMessage={setSystemMessage}
+          API_BASE={API_BASE}
+        />
       )}
 
-      {/* Main glass navigation menu */}
-      <nav className="glass-nav">
-        <button 
-          className={activeTab === 'submit' ? 'active' : ''} 
-          onClick={() => setActiveTab('submit')}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="nav-icon">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-            <polyline points="14 2 14 8 20 8"></polyline>
-            <line x1="12" y1="18" x2="12" y2="12"></line>
-            <line x1="9" y1="15" x2="15" y2="15"></line>
-          </svg>
-          Submit Forms
-        </button>
-        <button 
-          className={activeTab === 'tracker' ? 'active' : ''} 
-          onClick={() => setActiveTab('tracker')}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="nav-icon">
-            <circle cx="12" cy="12" r="10"></circle>
-            <polyline points="12 6 12 12 16 14"></polyline>
-          </svg>
-          Track Workflows
-        </button>
-        <button 
-          className={activeTab === 'approvals' ? 'active' : ''} 
-          onClick={() => setActiveTab('approvals')}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="nav-icon">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-            <polyline points="22 4 12 14.01 9 11.01"></polyline>
-          </svg>
-          Approvals Portal
-        </button>
-        <button 
-          className={activeTab === 'audits' ? 'active' : ''} 
-          onClick={() => setActiveTab('audits')}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="nav-icon">
-            <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
-            <line x1="7" y1="2" x2="7" y2="22"></line>
-            <line x1="17" y1="2" x2="17" y2="22"></line>
-            <line x1="2" y1="12" x2="22" y2="12"></line>
-            <line x1="2" y1="7" x2="7" y2="7"></line>
-            <line x1="2" y1="17" x2="7" y2="17"></line>
-            <line x1="17" y1="17" x2="22" y2="17"></line>
-            <line x1="17" y1="7" x2="22" y2="7"></line>
-          </svg>
-          Real-time Logs
-        </button>
-        <button 
-          className={activeTab === 'status' ? 'active' : ''} 
-          onClick={() => setActiveTab('status')}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="nav-icon">
-            <path d="M3 12h18"></path>
-            <path d="M9 5l3 7-3 7"></path>
-            <path d="M15 5l-3 7 3 7"></path>
-          </svg>
-          System Status
-        </button>
-      </nav>
-
-      {/* Dynamic Content Body */}
-      <main className="content-container">
-        {loading && <div className="loader-overlay"><div className="loader"></div></div>}
-
-        {/* TAB 1: SUBMIT FORMS */}
-        {activeTab === 'submit' && (
-          <section className="tab-pane">
-            <div className="intro-text">
-              <h2>Select and Submit a Secure Administrative Request</h2>
-              <p>All forms are processed locally using zero-trust encryption and automatic multi-stage administrative event workflows.</p>
-            </div>
-
-            <div className="cards-grid">
-              {forms.map(form => (
-                <div 
-                  key={form.formId} 
-                  className={`form-card ${form.type.toLowerCase().replace(/ /g, '-')}`}
-                  onClick={() => setSelectedForm(form)}
-                >
-                  <div className="card-glare"></div>
-                  <div className="form-icon-wrap">
-                    {form.type.includes('Enrollment') && (
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="card-icon">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="9" cy="7" r="4"></circle>
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                      </svg>
-                    )}
-                    {form.type.includes('Transfer') && (
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="card-icon">
-                        <polyline points="16 3 21 3 21 8"></polyline>
-                        <line x1="10" y1="14" x2="21" y2="3"></line>
-                        <polyline points="8 21 3 21 3 16"></polyline>
-                        <line x1="3" y1="21" x2="14" y2="10"></line>
-                      </svg>
-                    )}
-                    {form.type.includes('Transcript') && (
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="card-icon">
-                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-                        <polygon points="12 11 12 17 17 14"></polygon>
-                      </svg>
-                    )}
-                  </div>
-                  <h3>{form.type}</h3>
-                  <p>Secure routing via gateway, triggering notifications and multi-stage audit trails.</p>
-                  <span className="submit-action-btn">Fill Request →</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Form Overlay Modal */}
-            {selectedForm && (
-              <div className="modal-backdrop" onClick={() => setSelectedForm(null)}>
-                <div className="modal-content glass-pane" onClick={e => e.stopPropagation()}>
-                  <button className="close-btn" onClick={() => setSelectedForm(null)}>×</button>
-                  <div className="modal-header">
-                    <span className="pre-title">FORM PORTAL</span>
-                    <h2>Submit {selectedForm.type}</h2>
-                  </div>
-                  
-                  <form onSubmit={handleFormSubmit} className="interactive-form">
-                    <div className="form-group">
-                      <label>Student Full Name</label>
-                      <input 
-                        type="text" 
-                        required 
-                        placeholder="e.g. Priyansh Sharma"
-                        value={studentName}
-                        onChange={e => setStudentName(e.target.value)}
-                      />
-                    </div>
-
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>Grade Level</label>
-                        <select value={gradeLevel} onChange={e => setGradeLevel(e.target.value)}>
-                          <option>9th Grade</option>
-                          <option>10th Grade</option>
-                          <option>11th Grade</option>
-                          <option>12th Grade</option>
-                        </select>
-                      </div>
-
-                      <div className="form-group">
-                        <label>Upload Supporting PDF</label>
-                        <div className="file-uploader-mock">
-                          <input 
-                            type="file" 
-                            id="file-input" 
-                            accept=".pdf" 
-                            onChange={async (e) => {
-                              if (e.target.files && e.target.files[0]) {
-                                const file = e.target.files[0];
-                                if (!currentUser) return;
-                                if (isBackendOnline) {
-                                  try {
-                                    setLoading(true);
-                                    const formData = new FormData();
-                                    formData.append("file", file);
-                                    formData.append("uploadedBy", currentUser.userId);
-                                    const uploadRes = await fetch(`${API_BASE}/document/upload`, {
-                                      method: "POST",
-                                      body: formData
-                                    });
-                                    if (!uploadRes.ok) throw new Error("File upload failed");
-                                    const docInfo = await uploadRes.json();
-                                    setAttachedDocument(docInfo.fileUrl);
-                                    setUploadedDocuments(prev => [
-                                      {
-                                        documentId: docInfo.documentId,
-                                        originalFileName: docInfo.originalFileName,
-                                        fileUrl: docInfo.fileUrl,
-                                        encryptedKey: docInfo.encryptedKey,
-                                        uploadedAt: docInfo.uploadedAt,
-                                        status: docInfo.status
-                                      },
-                                      ...prev
-                                    ]);
-                                    setSystemMessage({ text: `Uploaded and encrypted ${file.name} successfully.`, type: "success" });
-                                  } catch (err) {
-                                    setSystemMessage({ text: "Failed to upload document to DocumentService.", type: "error" });
-                                  } finally {
-                                    setLoading(false);
-                                  }
-                                } else {
-                                  const mockDocId = crypto.randomUUID();
-                                  setAttachedDocument(`/api/document/download/${mockDocId}`);
-                                  setUploadedDocuments(prev => [
-                                    {
-                                      documentId: mockDocId,
-                                      originalFileName: file.name,
-                                      fileUrl: `/api/document/download/${mockDocId}`,
-                                      encryptedKey: `envelope-key-${mockDocId}`,
-                                      uploadedAt: new Date().toISOString(),
-                                      status: "Uploaded (Simulated)"
-                                    },
-                                    ...prev
-                                  ]);
-                                  setSystemMessage({ text: `Attached ${file.name} successfully (Simulation).`, type: "success" });
-                                }
-                              }
-                            }}
-                          />
-                          <label htmlFor="file-input" className="file-label">
-                            <span className="icon">📎</span>
-                            <span className="text">
-                              {attachedDocument 
-                                ? attachedDocument.startsWith("http") || attachedDocument.startsWith("/") 
-                                  ? `Uploaded: ${attachedDocument.substring(attachedDocument.lastIndexOf("/") + 1)}`
-                                  : attachedDocument
-                                : "Choose PDF File"}
-                            </span>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="form-group">
-                      <label>Reason / Additional Details</label>
-                      <textarea 
-                        rows={4} 
-                        placeholder="Please elaborate on your request details. E.g. transferring schools due to family relocation..."
-                        value={additionalDetails}
-                        onChange={e => setAdditionalDetails(e.target.value)}
-                      />
-                    </div>
-
-                    <div className="modal-actions">
-                      <button type="button" className="cancel-btn" onClick={() => setSelectedForm(null)}>Cancel</button>
-                      <button type="submit" className="submit-btn">Submit to Secure Gateway</button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-            )}
-          </section>
-        )}
-
-        {/* TAB 2: WORKFLOW TRACKER */}
-        {activeTab === 'tracker' && (
-          <section className="tab-pane">
-            <div className="intro-text">
-              <h2>Real-time Administrative Workflow Visualizer</h2>
-              <p>Monitor your submissions as they traverse the multi-stage validation engine in real time.</p>
-            </div>
-
-            {submissions.length === 0 ? (
-              <div className="empty-state glass-pane">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="empty-icon">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                  <polyline points="14 2 14 8 20 8"></polyline>
-                  <line x1="16" y1="13" x2="8" y2="13"></line>
-                  <line x1="16" y1="17" x2="8" y2="17"></line>
-                  <polyline points="10 9 9 9 8 9"></polyline>
-                </svg>
-                <p>No submissions found. Submit a school form under the <strong>Submit Forms</strong> tab to start a workflow!</p>
-              </div>
-            ) : (
-              <div className="submissions-list">
-                {submissions.map(sub => {
-                  const matchingForm = forms.find(f => f.formId === sub.formId);
-                  const matchingWf = workflows.find(w => w.submissionId === sub.submissionId);
-                  const subData = JSON.parse(sub.data);
-                  
-                  return (
-                    <div key={sub.submissionId} className="submission-row glass-pane">
-                      <div className="submission-row-header">
-                        <div className="sub-meta-left">
-                          <span className="sub-type-badge">{matchingForm?.type || 'School Form'}</span>
-                          <span className="sub-id">ID: {sub.submissionId.substring(0, 8)}...</span>
-                        </div>
-                        <div className="sub-meta-right">
-                          <span className="sub-date">{new Date(sub.createdAt).toLocaleString()}</span>
-                          <span className={`status-badge ${sub.status.toLowerCase().replace(/ /g, '-')}`}>
-                            {sub.status}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="submission-details">
-                        <p><strong>Student:</strong> {subData.studentName} ({subData.gradeLevel})</p>
-                        {subData.additionalDetails && <p><strong>Details:</strong> {subData.additionalDetails}</p>}
-                        {subData.attachedDocument && subData.attachedDocument !== 'No attachment' && (
-                          <p className="attachment-meta">
-                            📎 Document:{" "}
-                            <button 
-                              className="download-link-btn"
-                              onClick={() => triggerSecureDownload(
-                                subData.attachedDocument, 
-                                subData.attachedDocument.substring(subData.attachedDocument.lastIndexOf("/") + 1)
-                              )}
-                            >
-                              Decrypt & Download PDF
-                            </button>
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Visual progress bar timeline */}
-                      {matchingWf && (
-                        <div className="workflow-timeline-wrapper">
-                          <div className="workflow-timeline-title">Workflow Progress (Engine Instantiated)</div>
-                          <div className="workflow-timeline">
-                            <div className="timeline-step completed">
-                              <span className="step-number">✓</span>
-                              <span className="step-text">Submitted</span>
-                            </div>
-
-                            <div className={`timeline-step ${
-                              matchingWf.currentStep !== 'Teacher Review' || matchingWf.status === 'Completed' ? 'completed' : 'active'
-                            }`}>
-                              <span className="step-number">
-                                {matchingWf.currentStep !== 'Teacher Review' || matchingWf.status === 'Completed' ? '✓' : '●'}
-                              </span>
-                              <span className="step-text">Teacher Review</span>
-                            </div>
-
-                            <div className={`timeline-step ${
-                              (matchingWf.currentStep !== 'Teacher Review' && matchingWf.currentStep !== 'School Admin Review') || matchingWf.status === 'Completed'
-                                ? 'completed' 
-                                : matchingWf.currentStep === 'School Admin Review' && matchingWf.status !== 'Completed' ? 'active' : 'upcoming'
-                            }`}>
-                              <span className="step-number">
-                                {(matchingWf.currentStep !== 'Teacher Review' && matchingWf.currentStep !== 'School Admin Review') || matchingWf.status === 'Completed' ? '✓' : '●'}
-                              </span>
-                              <span className="step-text">Admin Review</span>
-                            </div>
-
-                            <div className={`timeline-step ${
-                              matchingWf.status === 'Completed' 
-                                ? 'completed' 
-                                : matchingWf.currentStep === 'District Approval' ? 'active' : 'upcoming'
-                            }`}>
-                              <span className="step-number">
-                                {matchingWf.status === 'Completed' ? '✓' : '●'}
-                              </span>
-                              <span className="step-text">District Officer</span>
-                            </div>
-
-                            <div className={`timeline-step ${matchingWf.status === 'Completed' ? 'completed' : 'upcoming'}`}>
-                              <span className="step-number">
-                                {matchingWf.status === 'Completed' ? '✓' : '●'}
-                              </span>
-                              <span className="step-text">Completed</span>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-        )}
-
-        {/* TAB 3: APPROVALS PORTAL */}
-        {activeTab === 'approvals' && (
-          <section className="tab-pane">
-            <div className="intro-text">
-              <h2>Secure Approvals Portal</h2>
-              <p>View and manage pending approvals matching your active administrative role.</p>
-            </div>
-
-            <div className="role-banner glass-pane">
-              <span className="banner-role-badge">{currentUser.role.toUpperCase()} VIEW</span>
-              <p>You are logged in as <strong>{currentUser.name}</strong>. You see forms pending evaluation at the current stage.</p>
-            </div>
-
-            {workflows.filter(w => {
-              if (w.status !== 'InProgress') return false;
-              if (currentUser.role === 'Teacher' && w.currentStep === 'Teacher Review') return true;
-              if (currentUser.role === 'Admin' && w.currentStep === 'School Admin Review') return true;
-              if (currentUser.role === 'District' && w.currentStep === 'District Approval') return true;
-              return false;
-            }).length === 0 ? (
-              <div className="empty-state glass-pane">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="empty-icon">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                  <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                </svg>
-                <p>No pending approvals found for the role <strong>{currentUser.role}</strong> at this time.</p>
-              </div>
-            ) : (
-              <div className="approvals-grid">
-                {workflows.filter(w => {
-                  if (w.status !== 'InProgress') return false;
-                  if (currentUser.role === 'Teacher' && w.currentStep === 'Teacher Review') return true;
-                  if (currentUser.role === 'Admin' && w.currentStep === 'School Admin Review') return true;
-                  if (currentUser.role === 'District' && w.currentStep === 'District Approval') return true;
-                  return false;
-                }).map(wf => {
-                  const matchingSub = submissions.find(s => s.submissionId === wf.submissionId);
-                  const matchingForm = forms.find(f => f.formId === matchingSub?.formId);
-                  const subData = matchingSub ? JSON.parse(matchingSub.data) : { studentName: 'Unknown', gradeLevel: 'N/A' };
-                  
-                  return (
-                    <div key={wf.workflowId} className="approval-card glass-pane animate-fade-in">
-                      <div className="approval-card-header">
-                        <h4>{matchingForm?.type || 'Secure Form'}</h4>
-                        <span className="step-indicator-pill">{wf.currentStep}</span>
-                      </div>
-                      
-                      <div className="approval-card-body">
-                        <p><strong>Student Name:</strong> {subData.studentName}</p>
-                        <p><strong>Grade:</strong> {subData.gradeLevel}</p>
-                        <p><strong>Submission ID:</strong> {wf.submissionId.substring(0, 8)}...</p>
-                        {subData.additionalDetails && (
-                          <div className="details-box">
-                            <span className="title">Relocation Details/Reason:</span>
-                            <p>"{subData.additionalDetails}"</p>
-                          </div>
-                        )}
-                        {subData.attachedDocument && subData.attachedDocument !== 'No attachment' && (
-                          <div className="attachment-box">
-                            <span>📎 Document Attachment: </span>
-                            <button 
-                              className="download-link-btn"
-                              onClick={() => triggerSecureDownload(
-                                subData.attachedDocument, 
-                                subData.attachedDocument.substring(subData.attachedDocument.lastIndexOf("/") + 1)
-                              )}
-                            >
-                              Decrypt & Download PDF
-                            </button>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="approval-card-actions">
-                        <button className="reject-action-btn" onClick={() => setActiveRejectWfId(wf.workflowId)}>
-                          Reject
-                        </button>
-                        <button className="return-action-btn" onClick={() => setActiveReturnWfId(wf.workflowId)}>
-                          Return
-                        </button>
-                        <button className="approve-action-btn" onClick={() => handleApprove(wf.workflowId)}>
-                          Approve and Advance
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-        )}
-
-        {/* TAB 4: SYSTEM STATUS & API DISCOVERY */}
-        {activeTab === 'status' && (
-          <section className="tab-pane">
-            <div className="intro-text">
-              <h2>System Status & API Discovery</h2>
-              <p>View current microservice health and open individual Swagger documentation directly from the gateway.</p>
-            </div>
-
-            <div className="status-grid">
-              {serviceStatuses.length === 0 ? (
-                <div className="empty-state glass-pane">
-                  <p>Waiting for gateway health status…</p>
-                </div>
-              ) : (
-                serviceStatuses.map(status => (
-                  <div key={status.service} className={`status-card glass-pane ${status.online ? 'online' : 'offline'}`}>
-                    <div className="status-header">
-                      <div>
-                        <h3>{status.service}</h3>
-                        <p className="status-meta">Version: {status.version}</p>
-                      </div>
-                      <span className={`status-pill ${status.online ? 'connected' : 'disconnected'}`}>
-                        {status.online ? 'Online' : 'Offline'}
-                      </span>
-                    </div>
-
-                    <div className="status-body">
-                      <p><strong>Health:</strong> {status.status}</p>
-                      <p><strong>Endpoint:</strong> <a href={status.endpoint} target="_blank" rel="noreferrer">{status.endpoint}</a></p>
-                      {status.swagger && (
-                        <p><strong>Swagger:</strong> <a href={status.swagger} target="_blank" rel="noreferrer">{status.swagger}</a></p>
-                      )}
-                      {status.error && <p className="status-error">Error: {status.error}</p>}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <div className="vault-header intro-text" style={{ marginTop: '2.5rem' }}>
-              <h2>🛡️ Cryptographic Document Vault</h2>
-              <p>Monitor AES-256 envelope-encrypted files and verify SHA-256 digital signatures inside the Secure Key Vault.</p>
-            </div>
-
-            <div className="vault-pane glass-pane">
-              {uploadedDocuments.length === 0 ? (
-                <div className="empty-state">
-                  <p style={{ margin: 0, opacity: 0.8 }}>No documents uploaded in this session yet. Attach a PDF when submitting a form.</p>
-                </div>
-              ) : (
-                <div className="vault-table-wrapper">
-                  <table className="vault-table">
-                    <thead>
-                      <tr>
-                        <th>File Name</th>
-                        <th>Document ID</th>
-                        <th>Key Vault Secret Reference</th>
-                        <th>Integrity Hash</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {uploadedDocuments.map(doc => {
-                        const verifyStatus = verifiedDocs[doc.documentId];
-                        return (
-                          <tr key={doc.documentId}>
-                            <td><strong>{doc.originalFileName}</strong></td>
-                            <td><code className="guid-code" title={doc.documentId}>{doc.documentId.substring(0, 8)}...</code></td>
-                            <td>
-                              <span className="key-ref-badge">
-                                🔑 envelope-key-{doc.documentId.substring(0, 8)}...
-                              </span>
-                            </td>
-                            <td>
-                              <code className="hash-code" title="SHA-256 Encrypted Hash">
-                                e3b0c442...{doc.documentId.substring(0, 4)}
-                              </code>
-                            </td>
-                            <td>
-                              <div className="vault-actions">
-                                <button 
-                                  className={`verify-action-btn ${verifyStatus || ''}`}
-                                  disabled={verifyStatus === 'verifying'}
-                                  onClick={() => verifyIntegrity(doc.documentId)}
-                                >
-                                  {verifyStatus === 'verifying' ? (
-                                    <>
-                                      <span className="spinner-small"></span> Verifying...
-                                    </>
-                                  ) : verifyStatus === 'verified' ? (
-                                    "✓ Verified Signature"
-                                  ) : (
-                                    "Verify Integrity"
-                                  )}
-                                </button>
-                                <button 
-                                  className="vault-download-btn"
-                                  onClick={() => triggerSecureDownload(doc.fileUrl, doc.originalFileName)}
-                                >
-                                  Secure Download
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </section>
-        )}
-
-        {/* TAB 5: REAL-TIME AUDIT LOGS & NOTIFICATIONS */}
-        {activeTab === 'audits' && (
-          <section className="tab-pane">
-            <div className="intro-text">
-              <h2>Real-Time Microservices Audit Trail & Notification dispatch</h2>
-              <p>Explore generated events in real-time processed across the decentralized microservices.</p>
-            </div>
-
-            <div className="monitoring-split-pane">
-              {/* Left Side: Audit Trail */}
-              <div className="monitor-column glass-pane">
-                <div className="monitor-header">
-                  <h3>🛡️ Secure Audit logs (AuditService)</h3>
-                  <span className="service-tag">PORT 5003</span>
-                </div>
-                
-                <div className="monitor-terminal">
-                  {auditLogs.length === 0 ? (
-                    <div className="terminal-empty">Waiting for auditable actions...</div>
-                  ) : (
-                    auditLogs.map(log => (
-                      <div key={log.logId} className="terminal-line">
-                        <span className="timestamp">[{new Date(log.timestamp).toLocaleTimeString()}]</span>
-                        <span className={`action-badge ${log.actionType.toLowerCase().startsWith('step') ? 'approve' : 'submit'}`}>
-                          {log.actionType}
-                        </span>
-                        <span className="text">
-                          triggered by user {log.userId.substring(0, 8)}...
-                        </span>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              {/* Right Side: Notification Logs */}
-              <div className="monitor-column glass-pane">
-                <div className="monitor-header">
-                  <h3>🔔 Dispatched alerts (NotificationService)</h3>
-                  <span className="service-tag">PORT 5004</span>
-                </div>
-
-                <div className="monitor-terminal notification-view">
-                  {notifications.length === 0 ? (
-                    <div className="terminal-empty">No sent notifications logged.</div>
-                  ) : (
-                    notifications.map(notif => (
-                      <div key={notif.id} className="notification-card-wrap">
-                        <div className="notif-top">
-                          <span className={`channel-pill ${notif.type.toLowerCase()}`}>{notif.type}</span>
-                          <span className="recipient">{notif.recipient}</span>
-                        </div>
-                        <div className="notif-title">{notif.subject}</div>
-                        <div className="notif-body">"{notif.body}"</div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
-          </section>
-        )}
-      </main>
-
-      {/* Rejection Comments Modal */}
-      {activeRejectWfId && (
-        <div className="modal-backdrop" onClick={() => setActiveRejectWfId(null)}>
-          <div className="modal-content glass-pane rejection-modal animate-fade-in" onClick={e => e.stopPropagation()}>
-            <button className="close-btn" onClick={() => {
-              setActiveRejectWfId(null);
-              setRejectionReason('');
-            }}>×</button>
-            <div className="modal-header">
-              <span className="pre-title red-accent">SECURITY REVIEW</span>
-              <h2>Reject Administrative Request</h2>
-            </div>
-            
-            <form onSubmit={handleReject} className="interactive-form">
-              <div className="form-group">
-                <label>Reason for Rejection (Mandatory)</label>
-                <textarea 
-                  rows={4} 
-                  required
-                  placeholder="Provide detailed security or administrative reasons for rejecting this request. E.g. Missing required proof of address document..."
-                  value={rejectionReason}
-                  onChange={e => setRejectionReason(e.target.value)}
-                />
-              </div>
-
-              <div className="modal-actions">
-                <button type="button" className="cancel-btn" onClick={() => {
-                  setActiveRejectWfId(null);
-                  setRejectionReason('');
-                }}>Cancel</button>
-                <button type="submit" className="submit-btn reject-submit-btn">Reject Submission</button>
-              </div>
-            </form>
-          </div>
-        </div>
+      {activeTab === 'tracker' && (
+        <TrackWorkflows
+          submissions={submissions}
+          forms={forms}
+          workflows={workflows}
+          triggerSecureDownload={triggerSecureDownload}
+        />
       )}
 
-      {/* Return Comments Modal */}
-      {activeReturnWfId && (
-        <div className="modal-backdrop" onClick={() => setActiveReturnWfId(null)}>
-          <div className="modal-content glass-pane rejection-modal returned-modal animate-fade-in" onClick={e => e.stopPropagation()}>
-            <button className="close-btn" onClick={() => {
-              setActiveReturnWfId(null);
-              setReturnReason('');
-            }}>×</button>
-            <div className="modal-header">
-              <span className="pre-title yellow-accent">ADMINISTRATIVE RETURN</span>
-              <h2>Return Request for Changes</h2>
-            </div>
-            
-            <form onSubmit={handleReturn} className="interactive-form">
-              <div className="form-group">
-                <label>Reason for Return (Mandatory)</label>
-                <textarea 
-                  rows={4} 
-                  required
-                  placeholder="Provide details on what needs to be changed. E.g. Please re-upload the parent signature with a clear scan..."
-                  value={returnReason}
-                  onChange={e => setReturnReason(e.target.value)}
-                />
-              </div>
+      {activeTab === 'approvals' && (
+        <ApprovalsPortal
+          workflows={workflows}
+          submissions={submissions}
+          forms={forms}
+          currentUser={currentUser}
+          activeRejectWfId={activeRejectWfId}
+          setActiveRejectWfId={setActiveRejectWfId}
+          rejectionReason={rejectionReason}
+          setRejectionReason={setRejectionReason}
+          activeReturnWfId={activeReturnWfId}
+          setActiveReturnWfId={setActiveReturnWfId}
+          returnReason={returnReason}
+          setReturnReason={setReturnReason}
+          handleApprove={handleApprove}
+          handleReject={handleReject}
+          handleReturn={handleReturn}
+          triggerSecureDownload={triggerSecureDownload}
+        />
+      )}
 
-              <div className="modal-actions">
-                <button type="button" className="cancel-btn" onClick={() => {
-                  setActiveReturnWfId(null);
-                  setReturnReason('');
-                }}>Cancel</button>
-                <button type="submit" className="submit-btn return-submit-btn">Return Submission</button>
-              </div>
-            </form>
-          </div>
-        </div>
+      {activeTab === 'status' && (
+        <SystemStatus
+          serviceStatuses={serviceStatuses}
+          uploadedDocuments={uploadedDocuments}
+          verifiedDocs={verifiedDocs}
+          verifyIntegrity={verifyIntegrity}
+          triggerSecureDownload={triggerSecureDownload}
+        />
+      )}
+
+      {activeTab === 'audits' && (
+        <RealTimeLogs
+          auditLogs={auditLogs}
+          notifications={notifications}
+        />
       )}
 
       {/* Zero-Trust RBAC Block Dialog */}
@@ -1548,7 +820,7 @@ function App() {
           </div>
         </div>
       )}
-    </div>
+    </Layout>
   );
 }
 

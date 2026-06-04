@@ -10,7 +10,7 @@ SecureSchoolForms is an event-driven administrative portal that helps school dis
 - [Services & Ports](#services--ports)
 - [Quick Start](#quick-start)
 - [API Discovery](#api-discovery)
-- [Day 6–12 Highlights](#day-6-12-highlights)
+- [Day 6–13 Highlights](#day-6-13-highlights)
 - [Project Structure](#project-structure)
 
 ---
@@ -140,7 +140,7 @@ Example:
 curl http://localhost:5002/status
 ```
 
-## Day 6–12 Highlights
+## Day 6–13 Highlights
 
 ### Day 6: Enterprise Messaging
 - Added provider-aware message transport with `JsonFile` and `RabbitMQ` modes.
@@ -176,6 +176,12 @@ curl http://localhost:5002/status
 - Configured a cloud-native messaging transport using **Azure Service Bus** alongside `RabbitMQ` and `JsonFile` transports via MassTransit.
 - Created flexible, unified consumer and publisher configurations in `SecureSchoolForms.Core` enabling switchable dual-transport bindings.
 - Configured default connection string keys in `appsettings.json` configurations and container environment variables.
+
+### Day 13: React Frontend Setup, Routing, and Layout
+- Refactored the single 1500+ line `App.tsx` file into a modular, clean component-driven architecture.
+- Created standalone page components under `frontend/src/pages/` for `Login`, `SubmitForms`, `TrackWorkflows`, `ApprovalsPortal`, `SystemStatus`, and `RealTimeLogs`.
+- Created unified layout wrappers under `frontend/src/components/` for shell rendering (`Layout`) and notifications (`Toast`).
+- Configured clean state-based client-side routing to route between pages securely.
 
 ## Project Structure
 
