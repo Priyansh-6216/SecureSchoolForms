@@ -77,3 +77,25 @@ public class WorkflowStepRejectedNotificationConsumer : IConsumer<WorkflowStepRe
         await NotificationStore.SaveAsync(notification);
     }
 }
+
+/// <summary>
+/// Handles <see cref="WorkflowStepReturnedEvent"/> in MassTransit mode.
+/// </summary>
+public class WorkflowStepReturnedNotificationConsumer : IConsumer<WorkflowStepReturnedEvent>
+{
+    public async Task Consume(ConsumeContext<WorkflowStepReturnedEvent> context)
+    {
+        var evt = context.Message;
+        var notification = new SimulatedNotification
+        {
+            Id = Guid.NewGuid(),
+            Type = "Email",
+            Recipient = $"student_linked_to_{evt.SubmissionId.ToString()[..8]}@school.edu",
+            Subject = "Form Returned for Changes",
+            Body = $"Notice: Your form submission {evt.SubmissionId} has been returned for changes at the '{evt.ReturnedStep}' stage by User {evt.ReturnedBy}. Reason: {evt.Reason}",
+            Timestamp = DateTime.UtcNow
+        };
+
+        await NotificationStore.SaveAsync(notification);
+    }
+}

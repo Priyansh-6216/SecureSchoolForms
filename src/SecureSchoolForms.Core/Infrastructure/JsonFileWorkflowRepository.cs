@@ -68,7 +68,7 @@ public class JsonFileWorkflowRepository : IWorkflowRepository
                 SaveWorkflows(workflows);
 
                 // Also update the form submission status to match!
-                UpdateSubmissionStatus(instance.SubmissionId, status == "Completed" ? "Approved" : status == "Rejected" ? "Rejected" : $"Review ({step})");
+                UpdateSubmissionStatus(instance.SubmissionId, status == "Completed" ? "Approved" : status == "Rejected" ? "Rejected" : status == "ReturnedForChanges" ? "ReturnedForChanges" : $"Review ({step})");
             }
             return Task.CompletedTask;
         }

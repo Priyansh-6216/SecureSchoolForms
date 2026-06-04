@@ -95,6 +95,31 @@ public class WorkflowController : ControllerBase
         return Ok(new { Message = "Workflow step rejected.", Status = "Rejected" });
     }
 
+    [HttpPost("{workflowId}/return")]
+    public async Task<IActionResult> ReturnStep(Guid workflowId, [FromBody] ReturnRequest request)
+    {
+        var instance = await _workflowRepository.GetWorkflowInstanceAsync(workflowId);
+        if (instance == null) return NotFound();
+
+        // 1. Update workflow status to "ReturnedForChanges"
+        await _workflowRepository.UpdateWorkflowStatusAsync(workflowId, instance.CurrentStep, "ReturnedForChanges", null);
+
+        // 2. Publish step returned event for audit & notification
+        var stepReturnedEvent = new WorkflowStepReturnedEvent
+        {
+            WorkflowId = workflowId,
+            SubmissionId = instance.SubmissionId,
+            ReturnedStep = instance.CurrentStep,
+            ReturnedBy = request.ReturnedBy,
+            Reason = request.Reason,
+            ReturnedAt = DateTime.UtcNow
+        };
+
+        await _messageBus.PublishMessageAsync(stepReturnedEvent, "workflow.stepReturned");
+
+        return Ok(new { Message = "Workflow step returned for changes.", Status = "ReturnedForChanges" });
+    }
+
     [HttpGet("pending/{userId}")]
     public async Task<IActionResult> GetPendingApprovals(Guid userId)
     {
@@ -106,5 +131,11 @@ public class WorkflowController : ControllerBase
 public class RejectRequest
 {
     public Guid RejectedBy { get; set; }
+    public required string Reason { get; set; }
+}
+
+public class ReturnRequest
+{
+    public Guid ReturnedBy { get; set; }
     public required string Reason { get; set; }
 }

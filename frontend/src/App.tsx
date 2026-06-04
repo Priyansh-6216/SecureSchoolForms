@@ -109,6 +109,8 @@ function App() {
   const [loginError, setLoginError] = useState<string | null>(null);
   const [activeRejectWfId, setActiveRejectWfId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [activeReturnWfId, setActiveReturnWfId] = useState<string | null>(null);
+  const [returnReason, setReturnReason] = useState('');
 
   // Status flags
   const [isBackendOnline, setIsBackendOnline] = useState<boolean | null>(null);
@@ -546,6 +548,86 @@ function App() {
     // Reset states
     setActiveRejectWfId(null);
     setRejectionReason('');
+    setLoading(false);
+  };
+
+  // Workflow Return handler
+  const handleReturn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeReturnWfId || !returnReason.trim() || !currentUser) return;
+    setLoading(true);
+
+    if (isBackendOnline) {
+      try {
+        const res = await fetch(`${API_BASE}/workflow/${activeReturnWfId}/return`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            returnedBy: currentUser.userId,
+            reason: returnReason.trim()
+          })
+        });
+        if (!res.ok) throw new Error('Return failed');
+        setSystemMessage({ text: 'Workflow returned for changes.', type: 'success' });
+        loadSystemData();
+      } catch (err) {
+        setSystemMessage({ text: 'Failed to submit return via Gateway.', type: 'error' });
+      }
+    } else {
+      // Local simulation logic for return
+      const targetWfIndex = workflows.findIndex(w => w.workflowId === activeReturnWfId);
+      if (targetWfIndex !== -1) {
+        const updatedWfs = [...workflows];
+        const wf = { ...updatedWfs[targetWfIndex] };
+        
+        wf.status = 'ReturnedForChanges';
+        wf.updatedAt = new Date().toISOString();
+        updatedWfs[targetWfIndex] = wf;
+        setWorkflows(updatedWfs);
+
+        // Update corresponding submission status to ReturnedForChanges
+        const subIndex = submissions.findIndex(s => s.submissionId === wf.submissionId);
+        if (subIndex !== -1) {
+          const updatedSubs = [...submissions];
+          updatedSubs[subIndex] = {
+            ...updatedSubs[subIndex],
+            status: 'ReturnedForChanges',
+            updatedAt: new Date().toISOString()
+          };
+          setSubmissions(updatedSubs);
+        }
+
+        // Add local Audit log
+        const audit: AuditLog = {
+          logId: crypto.randomUUID(),
+          actionType: 'WorkflowReturned',
+          userId: currentUser.userId,
+          timestamp: new Date().toISOString(),
+          metadata: JSON.stringify({ workflowId: activeReturnWfId, reason: returnReason })
+        };
+        setAuditLogs(prev => [audit, ...prev]);
+
+        // Add local notification
+        const notif: SimulatedNotification = {
+          id: crypto.randomUUID(),
+          type: 'Email',
+          recipient: `student_linked_to_${wf.submissionId.substring(0, 8)}@school.edu`,
+          subject: 'Form Returned for Changes',
+          body: `Notice: Your form submission ${wf.submissionId} has been returned for changes at the '${wf.currentStep}' stage by User ${currentUser.name}. Reason: ${returnReason}`,
+          timestamp: new Date().toISOString()
+        };
+        setNotifications(prev => [notif, ...prev]);
+
+        setSystemMessage({
+          text: `Simulation: Request returned for changes.`,
+          type: 'success'
+        });
+      }
+    }
+
+    // Reset states
+    setActiveReturnWfId(null);
+    setReturnReason('');
     setLoading(false);
   };
 
@@ -1166,6 +1248,9 @@ function App() {
                         <button className="reject-action-btn" onClick={() => setActiveRejectWfId(wf.workflowId)}>
                           Reject
                         </button>
+                        <button className="return-action-btn" onClick={() => setActiveReturnWfId(wf.workflowId)}>
+                          Return
+                        </button>
                         <button className="approve-action-btn" onClick={() => handleApprove(wf.workflowId)}>
                           Approve and Advance
                         </button>
@@ -1387,6 +1472,43 @@ function App() {
                   setRejectionReason('');
                 }}>Cancel</button>
                 <button type="submit" className="submit-btn reject-submit-btn">Reject Submission</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Return Comments Modal */}
+      {activeReturnWfId && (
+        <div className="modal-backdrop" onClick={() => setActiveReturnWfId(null)}>
+          <div className="modal-content glass-pane rejection-modal returned-modal animate-fade-in" onClick={e => e.stopPropagation()}>
+            <button className="close-btn" onClick={() => {
+              setActiveReturnWfId(null);
+              setReturnReason('');
+            }}>×</button>
+            <div className="modal-header">
+              <span className="pre-title yellow-accent">ADMINISTRATIVE RETURN</span>
+              <h2>Return Request for Changes</h2>
+            </div>
+            
+            <form onSubmit={handleReturn} className="interactive-form">
+              <div className="form-group">
+                <label>Reason for Return (Mandatory)</label>
+                <textarea 
+                  rows={4} 
+                  required
+                  placeholder="Provide details on what needs to be changed. E.g. Please re-upload the parent signature with a clear scan..."
+                  value={returnReason}
+                  onChange={e => setReturnReason(e.target.value)}
+                />
+              </div>
+
+              <div className="modal-actions">
+                <button type="button" className="cancel-btn" onClick={() => {
+                  setActiveReturnWfId(null);
+                  setReturnReason('');
+                }}>Cancel</button>
+                <button type="submit" className="submit-btn return-submit-btn">Return Submission</button>
               </div>
             </form>
           </div>

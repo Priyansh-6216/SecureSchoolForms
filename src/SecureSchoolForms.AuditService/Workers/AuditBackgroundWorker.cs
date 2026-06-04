@@ -82,6 +82,21 @@ public class AuditBackgroundWorker : BackgroundService
             await AppendAuditLogAsync(auditLog);
         });
 
+        // 5. Subscribe to workflow.stepReturned
+        JsonFileMessageBus.Subscribe<WorkflowStepReturnedEvent>("workflow.stepReturned", async (returnedEvent) =>
+        {
+            var auditLog = new AuditLog
+            {
+                LogId = Guid.NewGuid(),
+                ActionType = "WorkflowReturned",
+                UserId = returnedEvent.ReturnedBy,
+                Timestamp = returnedEvent.ReturnedAt,
+                Metadata = JsonSerializer.Serialize(returnedEvent)
+            };
+
+            await AppendAuditLogAsync(auditLog);
+        });
+
         return Task.CompletedTask;
     }
 

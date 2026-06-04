@@ -774,6 +774,13 @@ body {
   color: var(--accent-rose);
 }
 
+.status-badge.returnedforchanges,
+.status-badge.returned-for-changes {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: var(--accent-amber);
+}
+
 .submission-details {
   font-size: 14px;
   color: var(--text-primary);
@@ -1014,7 +1021,7 @@ body {
 
 .approval-card-actions {
   display: grid;
-  grid-template-columns: 1fr 2fr;
+  grid-template-columns: 1fr 1fr 2fr;
   gap: 12px;
 }
 
@@ -1032,6 +1039,22 @@ body {
 
 .reject-action-btn:hover {
   background: rgba(244, 63, 94, 0.1);
+}
+
+.return-action-btn {
+  background: transparent;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: var(--accent-amber);
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.return-action-btn:hover {
+  background: rgba(245, 158, 11, 0.1);
 }
 
 .approve-action-btn {
@@ -1424,6 +1447,25 @@ body {
 
 .reject-submit-btn:hover {
   box-shadow: 0 6px 20px rgba(255, 94, 94, 0.5) !important;
+}
+
+/* Return Modal Specifics */
+.returned-modal .modal-header h2 {
+  color: var(--accent-amber);
+}
+
+.yellow-accent {
+  color: var(--accent-amber) !important;
+  background: rgba(245, 158, 11, 0.1) !important;
+}
+
+.return-submit-btn {
+  background: linear-gradient(135deg, var(--accent-amber), #d97706) !important;
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3) !important;
+}
+
+.return-submit-btn:hover {
+  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.5) !important;
 }
 
 /* Animations */

@@ -52,7 +52,7 @@ public class EfWorkflowRepository : IWorkflowRepository
             var submission = await _dbContext.Submissions.FindAsync(instance.SubmissionId);
             if (submission != null)
             {
-                submission.Status = status == "Completed" ? "Approved" : status == "Rejected" ? "Rejected" : $"Review ({step})";
+                submission.Status = status == "Completed" ? "Approved" : status == "Rejected" ? "Rejected" : status == "ReturnedForChanges" ? "ReturnedForChanges" : $"Review ({step})";
                 submission.UpdatedAt = DateTime.UtcNow;
             }
 

@@ -130,3 +130,33 @@ public class DocumentDownloadedAuditConsumer : IConsumer<DocumentDownloadedEvent
         Console.WriteLine($"[AuditService/Consumer] Logged DocumentDownloaded for file {evt.FileName} by user {evt.DownloadedBy}");
     }
 }
+
+/// <summary>
+/// Handles <see cref="WorkflowStepReturnedEvent"/> messages in MassTransit mode.
+/// </summary>
+public class WorkflowStepReturnedAuditConsumer : IConsumer<WorkflowStepReturnedEvent>
+{
+    private readonly SchoolFormsDbContext _db;
+
+    public WorkflowStepReturnedAuditConsumer(SchoolFormsDbContext db)
+    {
+        _db = db;
+    }
+
+    public async Task Consume(ConsumeContext<WorkflowStepReturnedEvent> context)
+    {
+        var evt = context.Message;
+        var log = new AuditLog
+        {
+            LogId = Guid.NewGuid(),
+            ActionType = "WorkflowReturned",
+            UserId = evt.ReturnedBy,
+            Timestamp = evt.ReturnedAt,
+            Metadata = JsonSerializer.Serialize(evt)
+        };
+
+        await _db.AuditLogs.AddAsync(log);
+        await _db.SaveChangesAsync();
+        Console.WriteLine($"[AuditService/Consumer] Logged WorkflowReturned by user {evt.ReturnedBy}");
+    }
+}

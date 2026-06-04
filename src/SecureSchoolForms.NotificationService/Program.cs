@@ -18,6 +18,7 @@ if (provider.Equals("RabbitMQ", StringComparison.OrdinalIgnoreCase) || provider.
         x.AddConsumer<FormSubmittedNotificationConsumer>();
         x.AddConsumer<WorkflowStepCompletedNotificationConsumer>();
         x.AddConsumer<WorkflowStepRejectedNotificationConsumer>();
+        x.AddConsumer<WorkflowStepReturnedNotificationConsumer>();
     });
 }
 else

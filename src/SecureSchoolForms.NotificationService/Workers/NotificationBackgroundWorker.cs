@@ -65,6 +65,21 @@ public class NotificationBackgroundWorker : BackgroundService
             await NotificationStore.SaveAsync(notification);
         });
 
+        // 4. Subscribe to workflow.stepReturned
+        JsonFileMessageBus.Subscribe<WorkflowStepReturnedEvent>("workflow.stepReturned", async (evt) =>
+        {
+            var notification = new SimulatedNotification
+            {
+                Id = Guid.NewGuid(),
+                Type = "Email",
+                Recipient = $"student_linked_to_{evt.SubmissionId.ToString()[..8]}@school.edu",
+                Subject = "Form Returned for Changes",
+                Body = $"Notice: Your form submission {evt.SubmissionId} has been returned for changes at the '{evt.ReturnedStep}' stage by User {evt.ReturnedBy}. Reason: {evt.Reason}",
+                Timestamp = DateTime.UtcNow
+            };
+            await NotificationStore.SaveAsync(notification);
+        });
+
         return Task.CompletedTask;
     }
 }
