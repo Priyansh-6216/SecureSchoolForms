@@ -59,9 +59,39 @@ public class AuthController : ControllerBase
         }
         return Ok(user);
     }
+
+    [HttpPost("register")]
+    public IActionResult Register([FromBody] RegisterRequest request)
+    {
+        if (SimulatedUsers.Any(u => u.Email.Equals(request.Email, StringComparison.OrdinalIgnoreCase)))
+        {
+            return BadRequest(new { Message = "Email address already registered." });
+        }
+
+        var newUser = new User
+        {
+            UserId = Guid.NewGuid(),
+            Name = request.Name,
+            Email = request.Email,
+            Role = request.Role,
+            SchoolId = request.SchoolId ?? "HighSchool-01",
+            CreatedAt = DateTime.UtcNow
+        };
+
+        SimulatedUsers.Add(newUser);
+        return Ok(newUser);
+    }
 }
 
 public class LoginRequest
 {
     public required string Email { get; set; }
+}
+
+public class RegisterRequest
+{
+    public required string Name { get; set; }
+    public required string Email { get; set; }
+    public required string Role { get; set; }
+    public string? SchoolId { get; set; }
 }

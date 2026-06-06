@@ -140,7 +140,7 @@ Example:
 curl http://localhost:5002/status
 ```
 
-## Day 6–13 Highlights
+## Day 6–14 Highlights
 
 ### Day 6: Enterprise Messaging
 - Added provider-aware message transport with `JsonFile` and `RabbitMQ` modes.
@@ -182,6 +182,12 @@ curl http://localhost:5002/status
 - Created standalone page components under `frontend/src/pages/` for `Login`, `SubmitForms`, `TrackWorkflows`, `ApprovalsPortal`, `SystemStatus`, and `RealTimeLogs`.
 - Created unified layout wrappers under `frontend/src/components/` for shell rendering (`Layout`) and notifications (`Toast`).
 - Configured clean state-based client-side routing to route between pages securely.
+
+### Day 14: Authentication UI & User Registration
+- Implemented user registration endpoints in `AuthService` to register new users in connected mode.
+- Updated the React login page with a toggle for sign-in and sign-up views.
+- Extended the login interface to request Name, Role, and School/District ID for new registrations.
+- Implemented state-based local mock user persistence in simulation mode and integration with the AuthService registration API in connected mode.
 
 ## Project Structure
 

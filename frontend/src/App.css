@@ -1398,6 +1398,34 @@ body {
   font-family: monospace;
 }
 
+.auth-toggle-link {
+  display: block;
+  text-align: center;
+  margin-top: 20px;
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.auth-toggle-link strong {
+  color: var(--accent-purple);
+  transition: color 0.2s ease;
+}
+
+.auth-toggle-link:hover {
+  color: var(--text-primary);
+}
+
+.auth-toggle-link:hover strong {
+  color: #b066ff;
+  text-decoration: underline;
+}
+
 .sign-out-btn {
   background: rgba(255, 94, 94, 0.1);
   color: #ff5e5e;

@@ -111,6 +111,11 @@ function App() {
   
   // User profile session interface
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [mockUsers, setMockUsers] = useState<UserProfile[]>([
+    { userId: 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', name: 'Alex Rivers', email: 'alex.rivers@school.edu', role: 'Teacher' },
+    { userId: 'f5e4d3c2-b1a0-9e8d-7c6b-5a4b3c2d1e0f', name: 'Principal Eleanor', email: 'eleanor.vance@school.edu', role: 'Admin' },
+    { userId: '9e8d7c6b-5a4b-3c2d-1e0f-f5e4d3c2b1a0', name: 'Superintendent Davis', email: 'davis.officer@district.edu', role: 'District' }
+  ]);
   const [loginEmail, setLoginEmail] = useState('');
   const [loginError, setLoginError] = useState<string | null>(null);
   const [activeRejectWfId, setActiveRejectWfId] = useState<string | null>(null);
@@ -667,7 +672,7 @@ function App() {
           name: userData.name,
           email: userData.email,
           role: userData.role
-        });
+         });
         setSystemMessage({ text: `Welcome back, ${userData.name}!`, type: 'success' });
       } catch (err: any) {
         setLoginError(err.message || 'Failed to authenticate with AuthService.');
@@ -676,18 +681,63 @@ function App() {
       }
     } else {
       // Simulate locally
-      const mockUsers = [
-        { userId: 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', name: 'Alex Rivers', email: 'alex.rivers@school.edu', role: 'Teacher' as const },
-        { userId: 'f5e4d3c2-b1a0-9e8d-7c6b-5a4b3c2d1e0f', name: 'Principal Eleanor', email: 'eleanor.vance@school.edu', role: 'Admin' as const },
-        { userId: '9e8d7c6b-5a4b-3c2d-1e0f-f5e4d3c2b1a0', name: 'Superintendent Davis', email: 'davis.officer@district.edu', role: 'District' as const }
-      ];
       const match = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
       if (match) {
         setCurrentUser(match);
         setSystemMessage({ text: `Simulation: Logged in as ${match.name} (${match.role})`, type: 'success' });
       } else {
-        setLoginError('Email not registered. Try: alex.rivers@school.edu, eleanor.vance@school.edu, or davis.officer@district.edu');
+        setLoginError('Email not registered. Try: alex.rivers@school.edu, eleanor.vance@school.edu, or register a new account below!');
       }
+      setLoading(false);
+    }
+  };
+
+  // Secure User Session Registration handler
+  const handleRegister = async (name: string, email: string, role: 'Teacher' | 'Admin' | 'District', schoolId: string) => {
+    setLoginError(null);
+    setLoading(true);
+
+    if (isBackendOnline) {
+      try {
+        const res = await fetch(`${API_BASE}/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, role, schoolId })
+        });
+        if (res.status === 400) {
+          const errData = await res.json();
+          throw new Error(errData.message || 'Email address already registered.');
+        }
+        if (!res.ok) throw new Error('Auth Gateway Error during registration.');
+        const userData = await res.json();
+        setCurrentUser({
+          userId: userData.userId,
+          name: userData.name,
+          email: userData.email,
+          role: userData.role
+        });
+        setSystemMessage({ text: `Welcome, ${userData.name}! Your account has been registered.`, type: 'success' });
+      } catch (err: any) {
+        setLoginError(err.message || 'Failed to register with AuthService.');
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      // Simulate registration locally
+      if (mockUsers.some(u => u.email.toLowerCase() === email.toLowerCase())) {
+        setLoginError('Email address already registered.');
+        setLoading(false);
+        return;
+      }
+      const newUser: UserProfile = {
+        userId: crypto.randomUUID(),
+        name,
+        email,
+        role
+      };
+      setMockUsers(prev => [...prev, newUser]);
+      setCurrentUser(newUser);
+      setSystemMessage({ text: `Simulation: Registered and logged in as ${newUser.name}`, type: 'success' });
       setLoading(false);
     }
   };
@@ -701,6 +751,7 @@ function App() {
         loginError={loginError}
         loading={loading}
         handleLogin={handleLogin}
+        handleRegister={handleRegister}
       />
     );
   }
