@@ -69,4 +69,11 @@ public class EfFormRepository : IFormRepository
             .Where(s => s.UserId == userId)
             .ToListAsync();
     }
+
+    public async Task<Form> CreateFormAsync(Form form)
+    {
+        await _dbContext.Forms.AddAsync(form);
+        await _dbContext.SaveChangesAsync();
+        return form;
+    }
 }

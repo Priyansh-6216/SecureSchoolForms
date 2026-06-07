@@ -9,4 +9,5 @@ public interface IFormRepository
     Task<FormSubmission> SubmitFormAsync(FormSubmission submission);
     Task<FormSubmission?> GetSubmissionByIdAsync(Guid submissionId);
     Task<IEnumerable<FormSubmission>> GetSubmissionsByUserAsync(Guid userId);
+    Task<Form> CreateFormAsync(Form form);
 }

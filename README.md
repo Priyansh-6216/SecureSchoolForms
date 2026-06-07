@@ -140,7 +140,7 @@ Example:
 curl http://localhost:5002/status
 ```
 
-## Day 6–14 Highlights
+## Day 6–15 Highlights
 
 ### Day 6: Enterprise Messaging
 - Added provider-aware message transport with `JsonFile` and `RabbitMQ` modes.
@@ -188,6 +188,13 @@ curl http://localhost:5002/status
 - Updated the React login page with a toggle for sign-in and sign-up views.
 - Extended the login interface to request Name, Role, and School/District ID for new registrations.
 - Implemented state-based local mock user persistence in simulation mode and integration with the AuthService registration API in connected mode.
+
+### Day 15: Forms UI & Template Creation
+- Added `CreateFormAsync` persistence handlers to `IFormRepository`, `JsonFileFormRepository`, and `EfFormRepository` in `SecureSchoolForms.Core`.
+- Implemented a new `HttpPost` endpoint in the `FormService` `FormController` to support dynamic creation of new form templates.
+- Updated the frontend `SubmitForms` view to render a "+ Create Form Template" card for Admin and District roles.
+- Implemented an interactive template creation modal form on the dashboard to register new administrative form layouts dynamically.
+- Linked form creation actions in `App.tsx` state coordinator to support both local simulation and connected-mode gateway APIs.
 
 ## Project Structure
 

@@ -25,6 +25,18 @@ public class FormController : ControllerBase
         return Ok(forms);
     }
 
+    [HttpPost]
+    public async Task<IActionResult> CreateForm([FromBody] Form form)
+    {
+        if (form == null) return BadRequest();
+        
+        form.FormId = Guid.NewGuid();
+        form.CreatedAt = DateTime.UtcNow;
+        
+        var created = await _formRepository.CreateFormAsync(form);
+        return CreatedAtAction(nameof(GetAvailableForms), new { id = created.FormId }, created);
+    }
+
     [HttpPost("submit")]
     public async Task<IActionResult> SubmitForm([FromBody] FormSubmission submission)
     {

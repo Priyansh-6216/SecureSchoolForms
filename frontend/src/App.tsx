@@ -742,6 +742,38 @@ function App() {
     }
   };
 
+  // Admin template creation callback
+  const handleCreateFormTemplate = async (type: string, status: string) => {
+    setLoading(true);
+    const newForm: FormTemplate = {
+      formId: crypto.randomUUID(),
+      type,
+      status
+    };
+
+    if (isBackendOnline) {
+      try {
+        const res = await fetch(`${API_BASE}/form`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newForm)
+        });
+        if (!res.ok) throw new Error('Failed to create form template via Gateway.');
+        setSystemMessage({ text: `Published form template "${type}" successfully!`, type: 'success' });
+        loadSystemData(); // Reload available forms
+      } catch (err: any) {
+        setSystemMessage({ text: err.message || 'Failed to create form template.', type: 'error' });
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      // Simulate locally
+      setForms(prev => [...prev, newForm]);
+      setSystemMessage({ text: `Simulation: Published form template "${type}" successfully!`, type: 'success' });
+      setLoading(false);
+    }
+  };
+
   if (!currentUser) {
     return (
       <Login 
@@ -788,6 +820,7 @@ function App() {
           setLoading={setLoading}
           setSystemMessage={setSystemMessage}
           API_BASE={API_BASE}
+          handleCreateFormTemplate={handleCreateFormTemplate}
         />
       )}
 

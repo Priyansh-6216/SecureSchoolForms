@@ -123,6 +123,18 @@ public class JsonFileFormRepository : IFormRepository
         }
     }
 
+    public Task<Form> CreateFormAsync(Form form)
+    {
+        lock (FileLock)
+        {
+            var forms = LoadForms();
+            forms.Add(form);
+            var json = JsonSerializer.Serialize(forms, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(FormsFile, json);
+            return Task.FromResult(form);
+        }
+    }
+
     private List<Form> LoadForms()
     {
         if (!File.Exists(FormsFile)) return new List<Form>();

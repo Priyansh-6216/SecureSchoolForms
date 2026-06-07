@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 interface FormTemplate {
   formId: string;
@@ -42,6 +42,7 @@ interface SubmitFormsProps {
   setLoading: (loading: boolean) => void;
   setSystemMessage: (msg: { text: string; type: 'info' | 'error' | 'success' } | null) => void;
   API_BASE: string;
+  handleCreateFormTemplate: (type: string, status: string) => Promise<void> | void;
 }
 
 export const SubmitForms: React.FC<SubmitFormsProps> = ({
@@ -62,8 +63,13 @@ export const SubmitForms: React.FC<SubmitFormsProps> = ({
   isBackendOnline,
   setLoading,
   setSystemMessage,
-  API_BASE
+  API_BASE,
+  handleCreateFormTemplate
 }) => {
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [newFormType, setNewFormType] = useState('');
+  const [newFormStatus, setNewFormStatus] = useState('Published');
+
   return (
     <section className="tab-pane">
       <div className="intro-text">
@@ -102,15 +108,42 @@ export const SubmitForms: React.FC<SubmitFormsProps> = ({
                   <polygon points="12 11 12 17 17 14"></polygon>
                 </svg>
               )}
+              {!form.type.includes('Enrollment') && !form.type.includes('Transfer') && !form.type.includes('Transcript') && (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="card-icon">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+              )}
             </div>
             <h3>{form.type}</h3>
             <p>Secure routing via gateway, triggering notifications and multi-stage audit trails.</p>
             <span className="submit-action-btn">Fill Request →</span>
           </div>
         ))}
+
+        {currentUser.role !== 'Teacher' && (
+          <div 
+            className="form-card create-template-card"
+            onClick={() => setIsCreateModalOpen(true)}
+          >
+            <div className="card-glare"></div>
+            <div className="form-icon-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="card-icon">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </div>
+            <h3>Create Form Template</h3>
+            <p>Define a new type of administrative request form for school office submissions.</p>
+            <span className="submit-action-btn">+ Create Template</span>
+          </div>
+        )}
       </div>
 
-      {/* Form Overlay Modal */}
+      {/* Form Submission Modal */}
       {selectedForm && (
         <div className="modal-backdrop" onClick={() => setSelectedForm(null)}>
           <div className="modal-content glass-pane" onClick={e => e.stopPropagation()}>
@@ -235,6 +268,54 @@ export const SubmitForms: React.FC<SubmitFormsProps> = ({
           </div>
         </div>
       )}
+
+      {/* Form Template Creation Modal */}
+      {isCreateModalOpen && (
+        <div className="modal-backdrop" onClick={() => setIsCreateModalOpen(false)}>
+          <div className="modal-content glass-pane" onClick={e => e.stopPropagation()}>
+            <button className="close-btn" onClick={() => setIsCreateModalOpen(false)}>×</button>
+            <div className="modal-header">
+              <span className="pre-title">ADMIN CONTROL PORTAL</span>
+              <h2>Create Request Form Template</h2>
+            </div>
+            
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              if (!newFormType.trim()) return;
+              await handleCreateFormTemplate(newFormType.trim(), newFormStatus);
+              setNewFormType('');
+              setNewFormStatus('Published');
+              setIsCreateModalOpen(false);
+            }} className="interactive-form">
+              <div className="form-group">
+                <label>Form Type / Name</label>
+                <input 
+                  type="text" 
+                  required 
+                  placeholder="e.g. Immunization Record Form, Field Trip Authorization"
+                  value={newFormType}
+                  onChange={e => setNewFormType(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Initial Template Status</label>
+                <select value={newFormStatus} onChange={e => setNewFormStatus(e.target.value)}>
+                  <option value="Published">Published (Active)</option>
+                  <option value="Draft">Draft</option>
+                  <option value="Archived">Archived</option>
+                </select>
+              </div>
+
+              <div className="modal-actions">
+                <button type="button" className="cancel-btn" onClick={() => setIsCreateModalOpen(false)}>Cancel</button>
+                <button type="submit" className="submit-btn">Publish Form Template</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </section>
   );
 };
+
